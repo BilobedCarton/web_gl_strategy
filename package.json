@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "lint": "oxlint",
-    "lint:fix": "oxlint --fix"
+    "lint:fix": "oxlint --fix",
+    "prepare": "husky",
+    "pre-commit": "lint-staged"
   },
   "keywords": [],
   "author": "",
