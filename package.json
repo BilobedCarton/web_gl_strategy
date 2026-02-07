@@ -29,8 +29,7 @@
   "lint-staged": {
     "*": "oxfmt --no-error-on-unmatched-pattern",
     "src/*.{js,jsx,ts,tsx,mjs,cjs}": [
-      "pnpm run lint",
-      "pnpm run build"
+      "pnpm run lint"
     ]
   },
   "packageManager": "pnpm@10.28.1"
