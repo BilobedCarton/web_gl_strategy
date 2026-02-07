@@ -30,7 +30,9 @@ const grid = new Grid(gridWidth, gridHeight, [0.5, 0.5, 0.5, 1.0]); // Default g
 
 // Create procedural terrain generator
 const terrainGenerator = new ProceduralTerrainGenerator();
-console.log(`Generating terrain with latitude: ${terrainGenerator.getLatitude().toFixed(2)}`);
+console.log(`Generating terrain:`);
+console.log(`  Map Type: ${terrainGenerator.getMapType()}`);
+console.log(`  Latitude: ${terrainGenerator.getLatitude().toFixed(2)}`);
 
 // Populate grid with procedurally generated terrain
 for (let y = 0; y < gridHeight; y++) {
@@ -96,15 +98,6 @@ canvas.addEventListener("click", (event: MouseEvent) => {
       console.log(`Temperature: ${currentCell.temperature?.toFixed(3)}`);
       console.log(`Moisture: ${currentCell.moisture?.toFixed(3)}`);
     }
-
-    // Set cell to random terrain type
-    const newCell = createRandomTerrainCell();
-    grid.setCell(gridX, gridY, newCell);
-
-    // Update renderer with new grid data
-    gridRenderer.updateFromGrid(grid);
-
-    console.log(`→ Changed to: ${newCell.terrain}`);
   }
 });
 
@@ -113,6 +106,8 @@ console.log("📊 Procedural terrain generation complete");
 console.log("   - Perlin noise elevation");
 console.log("   - Temperature based on latitude");
 console.log("   - Moisture/watershed calculation");
+console.log("   - 5 map types (Island, Continent, Peninsula, Archipelago, Coastal)");
 console.log("   - 7 terrain types (DeepWaters, Shallows, Coast, Plains, Wetlands, Tundra, Desert)");
 console.log("   - 6 elevation types (DeepOcean, Ocean, Flat, Hills, Valley, Mountain)");
-console.log("\n💡 Click any cell to see detailed terrain info and change terrain type!\n");
+console.log("\n💡 Click any cell to see detailed terrain info and change terrain type!");
+console.log("🔄 Refresh the page to generate a new random map!\n");

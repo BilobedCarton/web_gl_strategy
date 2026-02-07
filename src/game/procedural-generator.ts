@@ -11,6 +11,14 @@ export enum ElevationType {
   Mountain = "mountain",
 }
 
+export enum MapType {
+  Island = "island", // Surrounded by water
+  Continent = "continent", // Large mainland with varied coasts
+  Peninsula = "peninsula", // Connected to mainland on one side
+  Archipelago = "archipelago", // Multiple islands
+  Coastal = "coastal", // Mainland segment with one coastal edge
+}
+
 export interface TerrainData {
   terrain: TerrainType;
   elevation: number; // 0-1 range
@@ -24,17 +32,92 @@ export class ProceduralTerrainGenerator {
   private moistureNoise: PerlinNoise;
   private temperatureNoise: PerlinNoise;
   private latitude: number; // 0-1 range (0 = equator, 1 = pole)
+  private mapType: MapType;
 
-  constructor(seed?: number) {
+  constructor(seed?: number, mapType?: MapType) {
     const baseSeed = seed ?? Math.floor(Math.random() * 10000);
     this.elevationNoise = new PerlinNoise(baseSeed);
     this.moistureNoise = new PerlinNoise(baseSeed + 1000);
     this.temperatureNoise = new PerlinNoise(baseSeed + 2000);
     this.latitude = Math.random(); // Random latitude for variation
+
+    // Random map type if not specified
+    if (mapType !== undefined) {
+      this.mapType = mapType;
+    } else {
+      const types = Object.values(MapType);
+      this.mapType = types[Math.floor(Math.random() * types.length)] || MapType.Island;
+    }
   }
 
   public getLatitude(): number {
     return this.latitude;
+  }
+
+  public getMapType(): MapType {
+    return this.mapType;
+  }
+
+  // Apply map-type specific shaping to elevation
+  private applyMapShaping(
+    elevation: number,
+    x: number,
+    y: number,
+    gridWidth: number,
+    gridHeight: number,
+  ): number {
+    const nx = x / gridWidth;
+    const ny = y / gridHeight;
+
+    switch (this.mapType) {
+      case MapType.Island: {
+        // Radial falloff from center
+        const centerX = gridWidth / 2;
+        const centerY = gridHeight / 2;
+        const distanceFromCenter = Math.sqrt(
+          Math.pow((x - centerX) / centerX, 2) + Math.pow((y - centerY) / centerY, 2),
+        );
+        const islandFactor = Math.max(0, 1 - distanceFromCenter * 0.8);
+        return elevation * islandFactor;
+      }
+
+      case MapType.Continent: {
+        // Large landmass with varied coastlines
+        const edgeDistance = Math.min(nx, 1 - nx, ny, 1 - ny);
+        const coastalFactor = Math.min(1, edgeDistance * 3);
+        return elevation * (0.3 + coastalFactor * 0.7);
+      }
+
+      case MapType.Peninsula: {
+        // Connected to one edge (top), water on other three sides
+        const bottomFactor = 1 - ny; // More land at top
+        const sideFactor = Math.min(nx, 1 - nx) * 2;
+        const peninsulaFactor = Math.min(1, bottomFactor * sideFactor * 2);
+        return elevation * (0.2 + peninsulaFactor * 0.8);
+      }
+
+      case MapType.Archipelago: {
+        // Multiple smaller islands
+        const islandNoise = this.elevationNoise.noise2D(nx * 8, ny * 8);
+        const islandMask = islandNoise > -0.2 ? 1 : 0.1;
+        const centerX = gridWidth / 2;
+        const centerY = gridHeight / 2;
+        const distanceFromCenter = Math.sqrt(
+          Math.pow((x - centerX) / centerX, 2) + Math.pow((y - centerY) / centerY, 2),
+        );
+        const falloff = Math.max(0, 1 - distanceFromCenter * 0.6);
+        return elevation * islandMask * falloff;
+      }
+
+      case MapType.Coastal: {
+        // Mainland segment with water on one edge (left side)
+        const coastalFactor = Math.min(1, nx * 2);
+        return elevation * (0.3 + coastalFactor * 0.7);
+      }
+
+      default:
+        return elevation;
+    }
   }
 
   // Generate elevation using Perlin noise with multiple octaves
@@ -48,14 +131,8 @@ export class ProceduralTerrainGenerator {
     // Normalize to 0-1 range
     elevation = (elevation + 1) / 2;
 
-    // Apply island effect (lower elevation at edges)
-    const centerX = gridWidth / 2;
-    const centerY = gridHeight / 2;
-    const distanceFromCenter = Math.sqrt(
-      Math.pow((x - centerX) / centerX, 2) + Math.pow((y - centerY) / centerY, 2),
-    );
-    const islandFactor = Math.max(0, 1 - distanceFromCenter * 0.8);
-    elevation *= islandFactor;
+    // Apply map-type specific shaping
+    elevation = this.applyMapShaping(elevation, x, y, gridWidth, gridHeight);
 
     return Math.max(0, Math.min(1, elevation));
   }
