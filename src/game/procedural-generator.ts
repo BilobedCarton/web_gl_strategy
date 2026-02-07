@@ -270,6 +270,130 @@ export class ProceduralTerrainGenerator {
     };
   }
 
+  // Generate rivers that flow from high elevations to water
+  public generateRivers(
+    terrainMap: Map<string, TerrainData>,
+    gridWidth: number,
+    gridHeight: number,
+    numRivers: number = 5,
+  ): void {
+    const getKey = (x: number, y: number): string => `${x},${y}`;
+
+    const isWater = (terrain: TerrainType): boolean => {
+      return terrain === TT.DeepWaters || terrain === TT.Shallows;
+    };
+
+    const getNeighbors = (x: number, y: number): Array<{ x: number; y: number }> => {
+      const neighbors: Array<{ x: number; y: number }> = [];
+      const directions = [
+        { dx: 0, dy: -1 }, // up
+        { dx: 1, dy: 0 }, // right
+        { dx: 0, dy: 1 }, // down
+        { dx: -1, dy: 0 }, // left
+      ];
+
+      for (const { dx, dy } of directions) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx >= 0 && nx < gridWidth && ny >= 0 && ny < gridHeight) {
+          neighbors.push({ x: nx, y: ny });
+        }
+      }
+
+      return neighbors;
+    };
+
+    // Find potential river starting points (high elevation, not water)
+    const potentialStarts: Array<{ x: number; y: number; elevation: number }> = [];
+
+    for (let y = 0; y < gridHeight; y++) {
+      for (let x = 0; x < gridWidth; x++) {
+        const key = getKey(x, y);
+        const data = terrainMap.get(key);
+
+        if (data && !isWater(data.terrain) && data.elevation > 0.6) {
+          potentialStarts.push({ x, y, elevation: data.elevation });
+        }
+      }
+    }
+
+    // Sort by elevation (highest first)
+    potentialStarts.sort((a, b) => b.elevation - a.elevation);
+
+    // Generate rivers from random high points
+    for (let i = 0; i < Math.min(numRivers, potentialStarts.length); i++) {
+      // Pick a random starting point from the top candidates
+      const startIndex = Math.floor(Math.random() * Math.min(20, potentialStarts.length));
+      const start = potentialStarts[startIndex];
+
+      if (!start) continue;
+
+      // Trace river path downhill
+      let currentX = start.x;
+      let currentY = start.y;
+      const visited = new Set<string>();
+      let maxSteps = 200; // Prevent infinite loops
+
+      while (maxSteps > 0) {
+        maxSteps--;
+
+        const currentKey = getKey(currentX, currentY);
+        const currentData = terrainMap.get(currentKey);
+
+        if (!currentData) break;
+
+        // Stop if we reached water
+        if (isWater(currentData.terrain)) {
+          break;
+        }
+
+        // Mark current cell as river (unless it's already water or coast)
+        if (currentData.terrain !== TT.Coast) {
+          visited.add(currentKey);
+        }
+
+        // Find lowest neighbor
+        const neighbors = getNeighbors(currentX, currentY);
+        let lowestNeighbor: { x: number; y: number; elevation: number } | null = null;
+
+        for (const neighbor of neighbors) {
+          const neighborKey = getKey(neighbor.x, neighbor.y);
+          const neighborData = terrainMap.get(neighborKey);
+
+          if (!neighborData) continue;
+
+          // Don't revisit cells in this river path
+          if (visited.has(neighborKey)) continue;
+
+          // Find the lowest neighbor
+          if (lowestNeighbor === null || neighborData.elevation < lowestNeighbor.elevation) {
+            lowestNeighbor = { ...neighbor, elevation: neighborData.elevation };
+          }
+        }
+
+        // If no lower neighbor, stop (reached a local minimum)
+        if (lowestNeighbor === null || lowestNeighbor.elevation >= currentData.elevation) {
+          break;
+        }
+
+        // Move to the lowest neighbor
+        currentX = lowestNeighbor.x;
+        currentY = lowestNeighbor.y;
+      }
+
+      // Apply river terrain to all visited cells
+      for (const key of visited) {
+        const data = terrainMap.get(key);
+        if (data) {
+          terrainMap.set(key, {
+            ...data,
+            terrain: TT.River,
+          });
+        }
+      }
+    }
+  }
+
   // Validate and fix coast terrain connectivity
   // Coast cells must be adjacent to water or another valid coast cell
   public validateCoastTerrain(
