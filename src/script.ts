@@ -1,8 +1,9 @@
 import { createGLContext } from "./core/gl-context";
 import { Camera } from "./core/camera";
 import { Grid } from "./game/grid";
-import { createCell } from "./game/cell";
+import { createCellFromTerrainData, createRandomTerrainCell } from "./game/cell";
 import { GridRenderer } from "./rendering/grid-renderer";
+import { ProceduralTerrainGenerator } from "./game/procedural-generator";
 
 // Initialize WebGL context
 const glContext = createGLContext("canvaselement", {
@@ -22,23 +23,29 @@ const { width, height } = glContext.getCanvasSize();
 // Create camera with view matching canvas size
 const camera = new Camera(width, height);
 
-// Create grid (20x20 cells)
-const gridWidth = 20;
-const gridHeight = 20;
-const grid = new Grid(gridWidth, gridHeight, [0.2, 0.2, 0.2, 1.0]); // Default dark gray
+// Create grid (50x50 cells for more interesting terrain)
+const gridWidth = 50;
+const gridHeight = 50;
+const grid = new Grid(gridWidth, gridHeight, [0.5, 0.5, 0.5, 1.0]); // Default gray
 
-// Populate grid with a checkerboard pattern
+// Create procedural terrain generator
+const terrainGenerator = new ProceduralTerrainGenerator();
+console.log(`Generating terrain with latitude: ${terrainGenerator.getLatitude().toFixed(2)}`);
+
+// Populate grid with procedurally generated terrain
 for (let y = 0; y < gridHeight; y++) {
   for (let x = 0; x < gridWidth; x++) {
-    const isEvenRow = y % 2 === 0;
-    const isEvenCol = x % 2 === 0;
-    const isWhite = isEvenRow === isEvenCol;
+    const terrainData = terrainGenerator.generateTerrainData(x, y, gridWidth, gridHeight);
 
-    if (isWhite) {
-      grid.setCell(x, y, createCell(0.8, 0.8, 0.8, 1.0)); // Light gray
-    } else {
-      grid.setCell(x, y, createCell(0.3, 0.3, 0.3, 1.0)); // Dark gray
-    }
+    const cell = createCellFromTerrainData(
+      terrainData.terrain,
+      terrainData.elevation,
+      terrainData.elevationType,
+      terrainData.temperature,
+      terrainData.moisture,
+    );
+
+    grid.setCell(x, y, cell);
   }
 }
 
@@ -80,16 +87,32 @@ canvas.addEventListener("click", (event: MouseEvent) => {
 
   // Check if click is within grid bounds
   if (grid.isInBounds(gridX, gridY)) {
-    // Set cell to random color
-    const randomColor = createCell(Math.random(), Math.random(), Math.random(), 1.0);
-    grid.setCell(gridX, gridY, randomColor);
+    // Get current cell to show detailed info
+    const currentCell = grid.getCell(gridX, gridY);
+    if (currentCell) {
+      console.log(`\n=== Cell (${gridX}, ${gridY}) ===`);
+      console.log(`Terrain: ${currentCell.terrain}`);
+      console.log(`Elevation: ${currentCell.elevation?.toFixed(3)} (${currentCell.elevationType})`);
+      console.log(`Temperature: ${currentCell.temperature?.toFixed(3)}`);
+      console.log(`Moisture: ${currentCell.moisture?.toFixed(3)}`);
+    }
+
+    // Set cell to random terrain type
+    const newCell = createRandomTerrainCell();
+    grid.setCell(gridX, gridY, newCell);
 
     // Update renderer with new grid data
     gridRenderer.updateFromGrid(grid);
 
-    console.log(`Cell (${gridX}, ${gridY}) updated to color:`, randomColor.color);
+    console.log(`→ Changed to: ${newCell.terrain}`);
   }
 });
 
-console.log("Grid-based strategy game initialized!");
-console.log("Click on cells to change their colors!");
+console.log("\n🗺️  Grid-based strategy game initialized!");
+console.log("📊 Procedural terrain generation complete");
+console.log("   - Perlin noise elevation");
+console.log("   - Temperature based on latitude");
+console.log("   - Moisture/watershed calculation");
+console.log("   - 7 terrain types (DeepWaters, Shallows, Coast, Plains, Wetlands, Tundra, Desert)");
+console.log("   - 6 elevation types (DeepOcean, Ocean, Flat, Hills, Valley, Mountain)");
+console.log("\n💡 Click any cell to see detailed terrain info and change terrain type!\n");
