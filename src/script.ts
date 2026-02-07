@@ -3,7 +3,7 @@ import { Camera } from "./core/camera";
 import { Grid } from "./game/grid";
 import { createCellFromTerrainData, createRandomTerrainCell } from "./game/cell";
 import { GridRenderer } from "./rendering/grid-renderer";
-import { ProceduralTerrainGenerator } from "./game/procedural-generator";
+import { ProceduralTerrainGenerator, MapType } from "./game/procedural-generator";
 
 // Initialize WebGL context
 const glContext = createGLContext("canvaselement", {
@@ -23,44 +23,86 @@ const { width, height } = glContext.getCanvasSize();
 // Create camera with view matching canvas size
 const camera = new Camera(width, height);
 
-// Create grid (50x50 cells for more interesting terrain)
+// Grid configuration
 const gridWidth = 50;
 const gridHeight = 50;
-const grid = new Grid(gridWidth, gridHeight, [0.5, 0.5, 0.5, 1.0]); // Default gray
-
-// Create procedural terrain generator
-const terrainGenerator = new ProceduralTerrainGenerator();
-console.log(`Generating terrain:`);
-console.log(`  Map Type: ${terrainGenerator.getMapType()}`);
-console.log(`  Latitude: ${terrainGenerator.getLatitude().toFixed(2)}`);
-
-// Populate grid with procedurally generated terrain
-for (let y = 0; y < gridHeight; y++) {
-  for (let x = 0; x < gridWidth; x++) {
-    const terrainData = terrainGenerator.generateTerrainData(x, y, gridWidth, gridHeight);
-
-    const cell = createCellFromTerrainData(
-      terrainData.terrain,
-      terrainData.elevation,
-      terrainData.elevationType,
-      terrainData.temperature,
-      terrainData.moisture,
-    );
-
-    grid.setCell(x, y, cell);
-  }
-}
+const grid = new Grid(gridWidth, gridHeight, [0.5, 0.5, 0.5, 1.0]);
 
 // Create grid renderer
 const gridRenderer = new GridRenderer(glContext, gridWidth * gridHeight);
-
-// Set cell size to fill the canvas
 const cellWidth = width / gridWidth;
 const cellHeight = height / gridHeight;
 gridRenderer.setCellSize(cellWidth, cellHeight);
 
-// Update renderer with grid data
-gridRenderer.updateFromGrid(grid);
+// UI Elements
+const mapTypeSelect = document.getElementById("mapType") as HTMLSelectElement;
+const seedInput = document.getElementById("seed") as HTMLInputElement;
+const latitudeInput = document.getElementById("latitude") as HTMLInputElement;
+const latitudeValue = document.getElementById("latitudeValue") as HTMLSpanElement;
+const regenerateBtn = document.getElementById("regenerate") as HTMLButtonElement;
+
+// Current terrain generator
+let terrainGenerator: ProceduralTerrainGenerator;
+
+// Generate/regenerate the map
+function generateMap() {
+  // Get values from UI
+  const mapTypeValue = mapTypeSelect.value;
+  const seedValue = seedInput.value ? parseInt(seedInput.value) : undefined;
+  const latitudeValue = latitudeInput.value ? parseInt(latitudeInput.value) / 100 : undefined;
+
+  // Determine map type
+  let mapType: MapType | undefined;
+  if (mapTypeValue !== "random") {
+    mapType = mapTypeValue as MapType;
+  }
+
+  // Create terrain generator with custom settings
+  terrainGenerator = new ProceduralTerrainGenerator(seedValue, mapType);
+
+  // Override latitude if specified
+  if (latitudeValue !== undefined) {
+    terrainGenerator.setLatitude(latitudeValue);
+  }
+
+  console.log("\n🗺️  Generating new terrain:");
+  console.log(`  Map Type: ${terrainGenerator.getMapType()}`);
+  console.log(`  Latitude: ${terrainGenerator.getLatitude().toFixed(2)}`);
+
+  // Clear existing grid
+  grid.clear();
+
+  // Populate grid with procedurally generated terrain
+  for (let y = 0; y < gridHeight; y++) {
+    for (let x = 0; x < gridWidth; x++) {
+      const terrainData = terrainGenerator.generateTerrainData(x, y, gridWidth, gridHeight);
+
+      const cell = createCellFromTerrainData(
+        terrainData.terrain,
+        terrainData.elevation,
+        terrainData.elevationType,
+        terrainData.temperature,
+        terrainData.moisture,
+      );
+
+      grid.setCell(x, y, cell);
+    }
+  }
+
+  // Update renderer
+  gridRenderer.updateFromGrid(grid);
+}
+
+// Update latitude value display
+latitudeInput.addEventListener("input", () => {
+  const value = parseInt(latitudeInput.value);
+  latitudeValue.textContent = (value / 100).toFixed(2);
+});
+
+// Handle regenerate button
+regenerateBtn.addEventListener("click", () => {
+  generateMap();
+});
 
 // Game loop
 function render(): void {
@@ -101,6 +143,9 @@ canvas.addEventListener("click", (event: MouseEvent) => {
   }
 });
 
+// Generate initial map
+generateMap();
+
 console.log("\n🗺️  Grid-based strategy game initialized!");
 console.log("📊 Procedural terrain generation complete");
 console.log("   - Perlin noise elevation");
@@ -110,4 +155,4 @@ console.log("   - 5 map types (Island, Continent, Peninsula, Archipelago, Coasta
 console.log("   - 7 terrain types (DeepWaters, Shallows, Coast, Plains, Wetlands, Tundra, Desert)");
 console.log("   - 6 elevation types (DeepOcean, Ocean, Flat, Hills, Valley, Mountain)");
 console.log("\n💡 Click any cell to see detailed terrain info and change terrain type!");
-console.log("🔄 Refresh the page to generate a new random map!\n");
+console.log("🎮 Use the controls panel to customize map generation!\n");

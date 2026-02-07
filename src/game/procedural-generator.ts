@@ -54,6 +54,10 @@ export class ProceduralTerrainGenerator {
     return this.latitude;
   }
 
+  public setLatitude(latitude: number): void {
+    this.latitude = Math.max(0, Math.min(1, latitude));
+  }
+
   public getMapType(): MapType {
     return this.mapType;
   }

@@ -1,2 +1,169 @@
-<canvas id="canvaselement" width="700" height="700"></canvas>
-<script type="module" src="src/script.js"></script>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Strategy Game - Procedural Terrain</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: #1a1a1a;
+        color: #e0e0e0;
+        display: flex;
+        gap: 20px;
+      }
+
+      #controls {
+        background: #2a2a2a;
+        padding: 20px;
+        border-radius: 8px;
+        min-width: 250px;
+        height: fit-content;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      }
+
+      h2 {
+        margin-top: 0;
+        color: #4a9eff;
+        font-size: 18px;
+        border-bottom: 2px solid #4a9eff;
+        padding-bottom: 8px;
+      }
+
+      .control-group {
+        margin-bottom: 16px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+        color: #b0b0b0;
+        font-weight: 500;
+      }
+
+      input,
+      select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #444;
+        background: #1a1a1a;
+        color: #e0e0e0;
+        border-radius: 4px;
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+
+      input[type="range"] {
+        padding: 0;
+        cursor: pointer;
+      }
+
+      input:focus,
+      select:focus {
+        outline: none;
+        border-color: #4a9eff;
+      }
+
+      button {
+        width: 100%;
+        padding: 12px;
+        background: #4a9eff;
+        border: none;
+        border-radius: 4px;
+        color: white;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      button:hover {
+        background: #357abd;
+      }
+
+      button:active {
+        background: #2868a8;
+      }
+
+      .value-display {
+        display: inline-block;
+        float: right;
+        color: #4a9eff;
+        font-weight: 600;
+      }
+
+      #canvas-container {
+        flex: 1;
+      }
+
+      canvas {
+        border: 2px solid #444;
+        border-radius: 4px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      }
+
+      .info {
+        margin-top: 20px;
+        padding: 12px;
+        background: #1a1a1a;
+        border-radius: 4px;
+        font-size: 12px;
+        line-height: 1.6;
+      }
+
+      .info-title {
+        color: #4a9eff;
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="controls">
+      <h2>🗺️ Terrain Generator</h2>
+
+      <div class="control-group">
+        <label for="mapType">Map Type</label>
+        <select id="mapType">
+          <option value="random">Random</option>
+          <option value="island">Island</option>
+          <option value="continent">Continent</option>
+          <option value="peninsula">Peninsula</option>
+          <option value="archipelago">Archipelago</option>
+          <option value="coastal">Coastal</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="seed">Seed</label>
+        <input type="number" id="seed" placeholder="Random" min="0" max="9999" />
+      </div>
+
+      <div class="control-group">
+        <label>
+          Latitude
+          <span class="value-display" id="latitudeValue">Random</span>
+        </label>
+        <input type="range" id="latitude" min="0" max="100" step="1" />
+      </div>
+
+      <button id="regenerate">🔄 Generate Map</button>
+
+      <div class="info">
+        <div class="info-title">Controls</div>
+        • Click cells to see terrain info<br />
+        • Adjust parameters above<br />
+        • Click Generate to create new map
+      </div>
+    </div>
+
+    <div id="canvas-container">
+      <canvas id="canvaselement" width="700" height="700"></canvas>
+    </div>
+
+    <script type="module" src="src/script.js"></script>
+  </body>
+</html>
