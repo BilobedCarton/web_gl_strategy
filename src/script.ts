@@ -1,90 +1,95 @@
-const canvas = document.getElementById("canvaselement") as HTMLCanvasElement | null;
-if (canvas === null) throw new Error("Could not find canvas element");
+import { createGLContext } from "./core/gl-context";
+import { Camera } from "./core/camera";
+import { Grid } from "./game/grid";
+import { createCell } from "./game/cell";
+import { GridRenderer } from "./rendering/grid-renderer";
 
-console.log("here");
+// Initialize WebGL context
+const glContext = createGLContext("canvaselement", {
+  alpha: false,
+  depth: true,
+  antialias: true,
+});
 
-const gl = canvas.getContext("webgl");
-if (gl === null) throw new Error("Could not get WebGL context");
+const { gl, canvas } = glContext;
 
-gl.viewport(0, 0, canvas.width, canvas.height);
+// Set clear color to dark gray
+glContext.setClearColor(0.1, 0.1, 0.1, 1.0);
 
-gl.clearColor(0.5, 0.5, 0.5, 1.0);
-gl.enable(gl.DEPTH_TEST);
-gl.clear(gl.COLOR_BUFFER_BIT);
+// Get canvas size
+const { width, height } = glContext.getCanvasSize();
 
-// Step 1: Create a vertex shader object
-const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+// Create camera with view matching canvas size
+const camera = new Camera(width, height);
 
-if (vertexShader === null) throw new Error("Could not establish vertex shader"); // handle possibility of null
+// Create grid (20x20 cells)
+const gridWidth = 20;
+const gridHeight = 20;
+const grid = new Grid(gridWidth, gridHeight, [0.2, 0.2, 0.2, 1.0]); // Default dark gray
 
-// Step 2: Write the vertex shader code
-const vertexShaderCode = `
-  attribute vec2 coordinates;
+// Populate grid with a checkerboard pattern
+for (let y = 0; y < gridHeight; y++) {
+  for (let x = 0; x < gridWidth; x++) {
+    const isEvenRow = y % 2 === 0;
+    const isEvenCol = x % 2 === 0;
+    const isWhite = isEvenRow === isEvenCol;
 
-  void main(void) {
-    gl_Position = vec4(coordinates, 0.0, 1.0);
+    if (isWhite) {
+      grid.setCell(x, y, createCell(0.8, 0.8, 0.8, 1.0)); // Light gray
+    } else {
+      grid.setCell(x, y, createCell(0.3, 0.3, 0.3, 1.0)); // Dark gray
+    }
   }
-`;
+}
 
-// Step 3: Attach the shader code to the vertex shader
-gl.shaderSource(vertexShader, vertexShaderCode);
+// Create grid renderer
+const gridRenderer = new GridRenderer(glContext, gridWidth * gridHeight);
 
-// Step 4: Compile the vertex shader
-gl.compileShader(vertexShader);
+// Set cell size to fill the canvas
+const cellWidth = width / gridWidth;
+const cellHeight = height / gridHeight;
+gridRenderer.setCellSize(cellWidth, cellHeight);
 
-// Step 1: Create a fragment shader object
-const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-if (fragmentShader === null) throw new Error("Could not establish fragment shader"); // handle possibility of null
+// Update renderer with grid data
+gridRenderer.updateFromGrid(grid);
 
-// Step 2: Write the fragment shader code
-const fragmentShaderCode = `
-  void main(void) {
-    gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+// Game loop
+function render(): void {
+  // Clear the canvas
+  glContext.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+  // Render the grid
+  gridRenderer.render(camera);
+
+  // Request next frame
+  requestAnimationFrame(render);
+}
+
+// Start the render loop
+render();
+
+// Add mouse click handler for interactive demo
+canvas.addEventListener("click", (event: MouseEvent) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+
+  // Convert screen coordinates to grid coordinates
+  const gridX = Math.floor(x / cellWidth);
+  const gridY = Math.floor(y / cellHeight);
+
+  // Check if click is within grid bounds
+  if (grid.isInBounds(gridX, gridY)) {
+    // Set cell to random color
+    const randomColor = createCell(Math.random(), Math.random(), Math.random(), 1.0);
+    grid.setCell(gridX, gridY, randomColor);
+
+    // Update renderer with new grid data
+    gridRenderer.updateFromGrid(grid);
+
+    console.log(`Cell (${gridX}, ${gridY}) updated to color:`, randomColor.color);
   }
-`;
-// Step 3: Attach the shader code to the fragment shader
-gl.shaderSource(fragmentShader, fragmentShaderCode);
+});
 
-// Step 4: Compile the fragment shader
-gl.compileShader(fragmentShader);
-
-// Step 1: Create a WebGL program instance
-const shaderProgram = gl.createProgram();
-if (shaderProgram === null) throw new Error("Could not create shader program");
-
-// Step 2: Attach the vertex and fragment shaders to the program
-gl.attachShader(shaderProgram, vertexShader);
-gl.attachShader(shaderProgram, fragmentShader);
-gl.linkProgram(shaderProgram);
-
-// Step 3: Activate the program as part of the rendering pipeline
-gl.useProgram(shaderProgram);
-
-// Step 1: Initialize the array of vertices for our triangle
-const vertices = new Float32Array([0.5, -0.5, -0.5, -0.5, 0.0, 0.5]);
-
-// Step 2: Create a new buffer object
-const vertex_buffer = gl.createBuffer();
-
-// Step 3: Bind the object to `gl.ARRAY_BUFFER`
-gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
-
-// Step 4: Pass the array of vertices to `gl.ARRAY_BUFFER
-gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-
-// Step 5: Get the location of the `coordinates` attribute of the vertex shader
-const coordinates = gl.getAttribLocation(shaderProgram, "coordinates");
-gl.vertexAttribPointer(coordinates, 2, gl.FLOAT, false, 0, 0);
-
-// Step 6: Enable the attribute to receive vertices from the vertex buffer
-gl.enableVertexAttribArray(coordinates);
-
-// Step 1: Set the viewport for WebGL in the canvas
-gl.viewport(0, 0, canvas.width, canvas.height);
-
-// Step 2: Clear the canvas with gray color
-gl.clearColor(0.5, 0.5, 0.5, 1);
-gl.clear(gl.COLOR_BUFFER_BIT);
-
-// Step 3: Draw the model on the canvas
-gl.drawArrays(gl.TRIANGLES, 0, 3);
+console.log("Grid-based strategy game initialized!");
+console.log("Click on cells to change their colors!");
