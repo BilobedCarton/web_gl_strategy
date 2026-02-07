@@ -72,10 +72,32 @@ function generateMap() {
   // Clear existing grid
   grid.clear();
 
-  // Populate grid with procedurally generated terrain
+  // First pass: generate all terrain data
+  const terrainMap = new Map<
+    string,
+    {
+      terrain: import("./game/terrain").TerrainType;
+      elevation: number;
+      elevationType: import("./game/procedural-generator").ElevationType;
+      temperature: number;
+      moisture: number;
+    }
+  >();
+
   for (let y = 0; y < gridHeight; y++) {
     for (let x = 0; x < gridWidth; x++) {
       const terrainData = terrainGenerator.generateTerrainData(x, y, gridWidth, gridHeight);
+      terrainMap.set(`${x},${y}`, terrainData);
+    }
+  }
+
+  // Validate coast terrain connectivity
+  terrainGenerator.validateCoastTerrain(terrainMap, gridWidth, gridHeight);
+
+  // Populate grid with validated terrain
+  for (let y = 0; y < gridHeight; y++) {
+    for (let x = 0; x < gridWidth; x++) {
+      const terrainData = terrainMap.get(`${x},${y}`)!;
 
       const cell = createCellFromTerrainData(
         terrainData.terrain,
@@ -151,7 +173,7 @@ console.log("📊 Procedural terrain generation complete");
 console.log("   - Perlin noise elevation");
 console.log("   - Temperature based on latitude");
 console.log("   - Moisture/watershed calculation");
-console.log("   - 5 map types (Island, Continent, Peninsula, Archipelago, Coastal)");
+console.log("   - 5 map types (Island, Inland, Peninsula, Archipelago, Coastal)");
 console.log("   - 7 terrain types (DeepWaters, Shallows, Coast, Plains, Wetlands, Tundra, Desert)");
 console.log("   - 6 elevation types (DeepOcean, Ocean, Flat, Hills, Valley, Mountain)");
 console.log("\n💡 Click any cell to see detailed terrain info and change terrain type!");

@@ -13,7 +13,7 @@ export enum ElevationType {
 
 export enum MapType {
   Island = "island", // Surrounded by water
-  Continent = "continent", // Large mainland with varied coasts
+  Inland = "inland", // No water at edges, landlocked terrain
   Peninsula = "peninsula", // Connected to mainland on one side
   Archipelago = "archipelago", // Multiple islands
   Coastal = "coastal", // Mainland segment with one coastal edge
@@ -85,11 +85,12 @@ export class ProceduralTerrainGenerator {
         return elevation * islandFactor;
       }
 
-      case MapType.Continent: {
-        // Large landmass with varied coastlines
+      case MapType.Inland: {
+        // No water at edges - boost elevation near boundaries
         const edgeDistance = Math.min(nx, 1 - nx, ny, 1 - ny);
-        const coastalFactor = Math.min(1, edgeDistance * 3);
-        return elevation * (0.3 + coastalFactor * 0.7);
+        // Boost elevation near edges to prevent ocean
+        const edgeBoost = 1 + (1 - edgeDistance) * 0.5;
+        return Math.min(1, elevation * edgeBoost * 1.2);
       }
 
       case MapType.Peninsula: {
@@ -153,9 +154,14 @@ export class ProceduralTerrainGenerator {
 
   // Generate temperature based on latitude and elevation
   private generateTemperature(x: number, y: number, gridHeight: number, elevation: number): number {
-    // Base temperature from latitude (distance from equator)
-    const latitudeFactor = Math.abs(y / gridHeight - 0.5) * 2; // 0 at equator, 1 at poles
-    let temperature = 1 - (latitudeFactor * 0.7 + this.latitude * 0.3);
+    // Base temperature from the map's latitude (0 = equator/hot, 1 = pole/cold)
+    // The entire map is at this latitude, representing a small section of the globe
+    let temperature = 1 - this.latitude;
+
+    // Small variation across the map (representing a small latitudinal range)
+    // A 50-cell map might represent ~5-10 degrees of latitude
+    const latitudeVariation = (y / gridHeight - 0.5) * 0.1; // ±0.05 variation
+    temperature -= latitudeVariation;
 
     // Elevation affects temperature (higher = colder)
     temperature -= elevation * 0.3;
@@ -262,5 +268,120 @@ export class ProceduralTerrainGenerator {
       temperature,
       moisture,
     };
+  }
+
+  // Validate and fix coast terrain connectivity
+  // Coast cells must be adjacent to water or another valid coast cell
+  public validateCoastTerrain(
+    terrainMap: Map<string, TerrainData>,
+    gridWidth: number,
+    gridHeight: number,
+  ): void {
+    const isWater = (terrain: TerrainType): boolean => {
+      return terrain === TT.DeepWaters || terrain === TT.Shallows;
+    };
+
+    const getKey = (x: number, y: number): string => `${x},${y}`;
+
+    const getNeighbors = (x: number, y: number): Array<{ x: number; y: number }> => {
+      const neighbors: Array<{ x: number; y: number }> = [];
+      const directions = [
+        { dx: 0, dy: -1 }, // up
+        { dx: 1, dy: 0 }, // right
+        { dx: 0, dy: 1 }, // down
+        { dx: -1, dy: 0 }, // left
+      ];
+
+      for (const { dx, dy } of directions) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx >= 0 && nx < gridWidth && ny >= 0 && ny < gridHeight) {
+          neighbors.push({ x: nx, y: ny });
+        }
+      }
+
+      return neighbors;
+    };
+
+    // Track which coast cells are valid (connected to water)
+    const validCoastCells = new Set<string>();
+
+    // First pass: mark all coast cells adjacent to water as valid
+    for (let y = 0; y < gridHeight; y++) {
+      for (let x = 0; x < gridWidth; x++) {
+        const key = getKey(x, y);
+        const data = terrainMap.get(key);
+
+        if (data && data.terrain === TT.Coast) {
+          const neighbors = getNeighbors(x, y);
+          const hasWaterNeighbor = neighbors.some((neighbor) => {
+            const neighborData = terrainMap.get(getKey(neighbor.x, neighbor.y));
+            return neighborData && isWater(neighborData.terrain);
+          });
+
+          if (hasWaterNeighbor) {
+            validCoastCells.add(key);
+          }
+        }
+      }
+    }
+
+    // Iteratively expand valid coast cells through connected coast cells
+    let changed = true;
+    while (changed) {
+      changed = false;
+
+      for (let y = 0; y < gridHeight; y++) {
+        for (let x = 0; x < gridWidth; x++) {
+          const key = getKey(x, y);
+          const data = terrainMap.get(key);
+
+          if (data && data.terrain === TT.Coast && !validCoastCells.has(key)) {
+            const neighbors = getNeighbors(x, y);
+            const hasValidCoastNeighbor = neighbors.some((neighbor) => {
+              const neighborKey = getKey(neighbor.x, neighbor.y);
+              return validCoastCells.has(neighborKey);
+            });
+
+            if (hasValidCoastNeighbor) {
+              validCoastCells.add(key);
+              changed = true;
+            }
+          }
+        }
+      }
+    }
+
+    // Replace invalid coast cells with appropriate land terrain
+    for (let y = 0; y < gridHeight; y++) {
+      for (let x = 0; x < gridWidth; x++) {
+        const key = getKey(x, y);
+        const data = terrainMap.get(key);
+
+        if (data && data.terrain === TT.Coast && !validCoastCells.has(key)) {
+          // Replace with appropriate land terrain based on temperature and moisture
+          const { temperature, moisture } = data;
+
+          let newTerrain: TerrainType = TT.Plains;
+
+          // Use same logic as determineTerrainType but skip water/coast checks
+          if (temperature < 0.3) {
+            newTerrain = TT.Tundra;
+          } else if (temperature > 0.7 && moisture < 0.3) {
+            newTerrain = TT.Desert;
+          } else if (moisture > 0.6) {
+            newTerrain = TT.Wetlands;
+          } else {
+            newTerrain = TT.Plains;
+          }
+
+          // Update terrain in the map
+          terrainMap.set(key, {
+            ...data,
+            terrain: newTerrain,
+          });
+        }
+      }
+    }
   }
 }
