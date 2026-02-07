@@ -27,8 +27,11 @@
     "vite": "^7.3.1"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,mjs,cjs}": "pnpm run lint",
-    "*": "oxfmt --no-error-on-unmatched-pattern"
+    "*": "oxfmt --no-error-on-unmatched-pattern",
+    "src/*.{js,jsx,ts,tsx,mjs,cjs}": [
+      "pnpm run lint",
+      "pnpm run build"
+    ]
   },
   "packageManager": "pnpm@10.28.1"
 }
