@@ -4,6 +4,7 @@ import { Grid } from "./game/grid";
 import { createCellFromTerrainData, createRandomTerrainCell } from "./game/cell";
 import { GridRenderer } from "./rendering/grid-renderer";
 import { ProceduralTerrainGenerator, MapType } from "./game/procedural-generator";
+import { getTerrainColor } from "./game/terrain";
 
 // Initialize WebGL context
 const glContext = createGLContext("canvaselement", {
@@ -39,10 +40,15 @@ const mapTypeSelect = document.getElementById("mapType") as HTMLSelectElement;
 const seedInput = document.getElementById("seed") as HTMLInputElement;
 const latitudeInput = document.getElementById("latitude") as HTMLInputElement;
 const latitudeValue = document.getElementById("latitudeValue") as HTMLSpanElement;
+const viewModeSelect = document.getElementById("viewMode") as HTMLSelectElement;
 const regenerateBtn = document.getElementById("regenerate") as HTMLButtonElement;
 
 // Current terrain generator
 let terrainGenerator: ProceduralTerrainGenerator;
+
+// View mode type
+type ViewMode = "terrain" | "elevation" | "moisture";
+let currentViewMode: ViewMode = "terrain";
 
 // Generate/regenerate the map
 function generateMap() {
@@ -114,7 +120,55 @@ function generateMap() {
     }
   }
 
-  // Update renderer
+  // Update renderer with current view mode
+  updateGridView();
+}
+
+// Update grid visualization based on current view mode
+function updateGridView(): void {
+  if (currentViewMode === "elevation") {
+    // Update colors to show elevation (grayscale)
+    for (let y = 0; y < gridHeight; y++) {
+      for (let x = 0; x < gridWidth; x++) {
+        const cell = grid.getCell(x, y);
+        if (cell && cell.elevation !== undefined) {
+          // Map elevation (0-1) to grayscale (black to white)
+          const brightness = cell.elevation;
+          const color: [number, number, number, number] = [brightness, brightness, brightness, 1.0];
+          grid.setCell(x, y, { ...cell, color });
+        }
+      }
+    }
+  } else if (currentViewMode === "moisture") {
+    // Update colors to show moisture (white to blue)
+    for (let y = 0; y < gridHeight; y++) {
+      for (let x = 0; x < gridWidth; x++) {
+        const cell = grid.getCell(x, y);
+        if (cell && cell.moisture !== undefined) {
+          // Map moisture (0-1) to white-to-blue gradient
+          // 0 = white (dry), 1 = blue (wet)
+          const moistureLevel = cell.moisture;
+          const r = 1.0 - moistureLevel * 0.8; // 1.0 to 0.2
+          const g = 1.0 - moistureLevel * 0.5; // 1.0 to 0.5
+          const b = 1.0; // Always 1.0
+          const color: [number, number, number, number] = [r, g, b, 1.0];
+          grid.setCell(x, y, { ...cell, color });
+        }
+      }
+    }
+  } else {
+    // Restore terrain colors
+    for (let y = 0; y < gridHeight; y++) {
+      for (let x = 0; x < gridWidth; x++) {
+        const cell = grid.getCell(x, y);
+        if (cell && cell.terrain) {
+          const terrainColor = getTerrainColor(cell.terrain);
+          grid.setCell(x, y, { ...cell, color: terrainColor });
+        }
+      }
+    }
+  }
+
   gridRenderer.updateFromGrid(grid);
 }
 
@@ -122,6 +176,12 @@ function generateMap() {
 latitudeInput.addEventListener("input", () => {
   const value = parseInt(latitudeInput.value);
   latitudeValue.textContent = (value / 100).toFixed(2);
+});
+
+// Handle view mode change
+viewModeSelect.addEventListener("change", () => {
+  currentViewMode = viewModeSelect.value as ViewMode;
+  updateGridView();
 });
 
 // Handle regenerate button

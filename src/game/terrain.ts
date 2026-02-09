@@ -18,7 +18,7 @@ export const TerrainColors: Record<TerrainType, [number, number, number, number]
   [TerrainType.Tundra]: [0.7, 0.65, 0.55, 1.0], // Pale brown
   [TerrainType.Desert]: [0.9, 0.8, 0.5, 1.0], // Pale yellow
   [TerrainType.Coast]: [0.99, 0.95, 0.65, 1.0], // White
-  [TerrainType.River]: [0.3, 0.6, 0.95, 1.0], // Bright blue
+  [TerrainType.River]: [0.4, 0.7, 0.9, 1.0], // same as shallows
 };
 
 export function getTerrainColor(terrain: TerrainType): [number, number, number, number] {
