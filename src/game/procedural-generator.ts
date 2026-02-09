@@ -206,6 +206,7 @@ export class ProceduralTerrainGenerator {
     gridWidth: number,
     gridHeight: number,
     elevation: number,
+    temperature: number,
   ): number {
     const nx = x / gridWidth;
     const ny = y / gridHeight;
@@ -227,6 +228,16 @@ export class ProceduralTerrainGenerator {
     // Mountains create rain shadows
     if (elevation > 0.7) {
       moisture *= 0.6;
+    }
+
+    // Cold air holds less moisture - reduce moisture in cold regions
+    // This creates polar deserts and cold dry regions
+    if (temperature < 0.3) {
+      // Very cold regions (polar): significantly reduce moisture
+      moisture *= 0.4 + temperature * 0.6; // Scale by temperature
+    } else if (temperature < 0.5) {
+      // Cool regions: moderately reduce moisture
+      moisture *= 0.7 + temperature * 0.3;
     }
 
     return Math.max(0, Math.min(1, moisture));
@@ -257,13 +268,18 @@ export class ProceduralTerrainGenerator {
     }
 
     // Land terrain based on temperature and moisture
-    // Cold regions
+    // Very dry regions - both cold and hot deserts
+    if (moisture < 0.2) {
+      return TT.Desert;
+    }
+
+    // Cold regions (but not extreme deserts, which were handled above)
     if (temperature < 0.3) {
       return TT.Tundra;
     }
 
-    // Hot and dry
-    if (temperature > 0.7 && moisture < 0.3) {
+    // Hot and moderately dry
+    if (temperature > 0.7 && moisture < 0.4) {
       return TT.Desert;
     }
 
@@ -286,7 +302,7 @@ export class ProceduralTerrainGenerator {
     const elevation = this.generateElevation(x, y, gridWidth, gridHeight);
     const elevationType = this.getElevationType(elevation);
     const temperature = this.generateTemperature(x, y, gridHeight, elevation);
-    const moisture = this.generateMoisture(x, y, gridWidth, gridHeight, elevation);
+    const moisture = this.generateMoisture(x, y, gridWidth, gridHeight, elevation, temperature);
     const terrain = this.determineTerrainType(elevation, elevationType, temperature, moisture);
 
     return {
@@ -612,9 +628,11 @@ export class ProceduralTerrainGenerator {
           let newTerrain: TerrainType = TT.Plains;
 
           // Use same logic as determineTerrainType but skip water/coast checks
-          if (temperature < 0.3) {
+          if (moisture < 0.2) {
+            newTerrain = TT.Desert;
+          } else if (temperature < 0.3) {
             newTerrain = TT.Tundra;
-          } else if (temperature > 0.7 && moisture < 0.3) {
+          } else if (temperature > 0.7 && moisture < 0.4) {
             newTerrain = TT.Desert;
           } else if (moisture > 0.6) {
             newTerrain = TT.Wetlands;
