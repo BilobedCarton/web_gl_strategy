@@ -40,6 +40,8 @@ const mapTypeSelect = document.getElementById("mapType") as HTMLSelectElement;
 const seedInput = document.getElementById("seed") as HTMLInputElement;
 const latitudeInput = document.getElementById("latitude") as HTMLInputElement;
 const latitudeValue = document.getElementById("latitudeValue") as HTMLSpanElement;
+const seaLevelInput = document.getElementById("seaLevel") as HTMLInputElement;
+const seaLevelValue = document.getElementById("seaLevelValue") as HTMLSpanElement;
 const viewModeSelect = document.getElementById("viewMode") as HTMLSelectElement;
 const regenerateBtn = document.getElementById("regenerate") as HTMLButtonElement;
 
@@ -56,6 +58,7 @@ function generateMap() {
   const mapTypeValue = mapTypeSelect.value;
   const seedValue = seedInput.value ? parseInt(seedInput.value) : undefined;
   const latitudeValue = latitudeInput.value ? parseInt(latitudeInput.value) / 100 : undefined;
+  const seaLevelValue = parseInt(seaLevelInput.value) / 100;
 
   // Determine map type
   let mapType: MapType | undefined;
@@ -64,7 +67,7 @@ function generateMap() {
   }
 
   // Create terrain generator with custom settings
-  terrainGenerator = new ProceduralTerrainGenerator(seedValue, mapType);
+  terrainGenerator = new ProceduralTerrainGenerator(seedValue, mapType, seaLevelValue);
 
   // Override latitude if specified
   if (latitudeValue !== undefined) {
@@ -74,6 +77,7 @@ function generateMap() {
   console.log("\n🗺️  Generating new terrain:");
   console.log(`  Map Type: ${terrainGenerator.getMapType()}`);
   console.log(`  Latitude: ${terrainGenerator.getLatitude().toFixed(2)}`);
+  console.log(`  Sea Level: ${terrainGenerator.getSeaLevel().toFixed(2)}`);
 
   // Clear existing grid
   grid.clear();
@@ -178,6 +182,12 @@ latitudeInput.addEventListener("input", () => {
   latitudeValue.textContent = (value / 100).toFixed(2);
 });
 
+// Update sea level value display
+seaLevelInput.addEventListener("input", () => {
+  const value = parseInt(seaLevelInput.value);
+  seaLevelValue.textContent = (value / 100).toFixed(2);
+});
+
 // Handle view mode change
 viewModeSelect.addEventListener("change", () => {
   currentViewMode = viewModeSelect.value as ViewMode;
@@ -233,7 +243,7 @@ generateMap();
 
 console.log("\n🗺️  Grid-based strategy game initialized!");
 console.log("📊 Procedural terrain generation complete");
-console.log("   - Perlin noise elevation");
+console.log("   - Perlin noise elevation with configurable sea level");
 console.log("   - Temperature based on latitude");
 console.log("   - Moisture/watershed calculation");
 console.log("   - River generation from high elevations");
@@ -241,6 +251,6 @@ console.log("   - 5 map types (Island, Inland, Peninsula, Archipelago, Coastal)"
 console.log(
   "   - 8 terrain types (DeepWaters, Shallows, River, Coast, Plains, Wetlands, Tundra, Desert)",
 );
-console.log("   - 6 elevation types (DeepOcean, Ocean, Flat, Hills, Valley, Mountain)");
+console.log("   - 3 land elevation types (Flat, Hills, Mountain)");
 console.log("\n💡 Click any cell to see detailed terrain info!");
 console.log("🎮 Use the controls panel to customize map generation!\n");

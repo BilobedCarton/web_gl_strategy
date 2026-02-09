@@ -3,11 +3,8 @@ import type { TerrainType } from "./terrain";
 import { TerrainType as TT } from "./terrain";
 
 export enum ElevationType {
-  DeepOcean = "deep_ocean",
-  Ocean = "ocean",
   Flat = "flat",
   Hills = "hills",
-  Valley = "valley",
   Mountain = "mountain",
 }
 
@@ -33,13 +30,15 @@ export class ProceduralTerrainGenerator {
   private temperatureNoise: PerlinNoise;
   private latitude: number; // 0-1 range (0 = equator, 1 = pole)
   private mapType: MapType;
+  private seaLevel: number; // 0-1 range, elevation below this is water
 
-  constructor(seed?: number, mapType?: MapType) {
+  constructor(seed?: number, mapType?: MapType, seaLevel: number = 0.35) {
     const baseSeed = seed ?? Math.floor(Math.random() * 10000);
     this.elevationNoise = new PerlinNoise(baseSeed);
     this.moistureNoise = new PerlinNoise(baseSeed + 1000);
     this.temperatureNoise = new PerlinNoise(baseSeed + 2000);
     this.latitude = Math.random(); // Random latitude for variation
+    this.seaLevel = seaLevel;
 
     // Random map type if not specified
     if (mapType !== undefined) {
@@ -60,6 +59,14 @@ export class ProceduralTerrainGenerator {
 
   public getMapType(): MapType {
     return this.mapType;
+  }
+
+  public getSeaLevel(): number {
+    return this.seaLevel;
+  }
+
+  public setSeaLevel(seaLevel: number): void {
+    this.seaLevel = Math.max(0, Math.min(1, seaLevel));
   }
 
   // Apply map-type specific shaping to elevation
@@ -142,13 +149,14 @@ export class ProceduralTerrainGenerator {
     return Math.max(0, Math.min(1, elevation));
   }
 
-  // Determine elevation type based on height
+  // Determine elevation type based on height (for land only)
+  // Note: This should only be called for elevations above sea level
   private getElevationType(elevation: number): ElevationType {
-    if (elevation < 0.25) return ElevationType.DeepOcean;
-    if (elevation < 0.35) return ElevationType.Ocean;
-    if (elevation < 0.45) return ElevationType.Flat;
-    if (elevation < 0.6) return ElevationType.Hills;
-    if (elevation < 0.7) return ElevationType.Valley;
+    // Normalize elevation relative to sea level for land classification
+    const landElevation = (elevation - this.seaLevel) / (1 - this.seaLevel);
+
+    if (landElevation < 0.3) return ElevationType.Flat;
+    if (landElevation < 0.7) return ElevationType.Hills;
     return ElevationType.Mountain;
   }
 
@@ -215,16 +223,20 @@ export class ProceduralTerrainGenerator {
     temperature: number,
     moisture: number,
   ): TerrainType {
-    // Water bodies
-    if (elevationType === ElevationType.DeepOcean) {
-      return TT.DeepWaters;
-    }
-    if (elevationType === ElevationType.Ocean) {
-      return TT.Shallows;
+    // Check if below sea level
+    if (elevation < this.seaLevel) {
+      // Deep water vs shallow water
+      const depthRatio = elevation / this.seaLevel;
+      if (depthRatio < 0.6) {
+        return TT.DeepWaters; // Deep ocean
+      } else {
+        return TT.Shallows; // Shallow water
+      }
     }
 
-    // Coastal areas
-    if (elevation >= 0.35 && elevation < 0.45) {
+    // Coastal areas (just above sea level)
+    const coastThreshold = this.seaLevel + 0.05; // Narrow coastal band
+    if (elevation >= this.seaLevel && elevation < coastThreshold) {
       return TT.Coast;
     }
 
