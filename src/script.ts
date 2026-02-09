@@ -185,13 +185,27 @@ function updateGridView(): void {
       }
     }
   } else {
-    // Restore terrain colors
+    // Restore terrain colors with elevation shading
     for (let y = 0; y < gridHeight; y++) {
       for (let x = 0; x < gridWidth; x++) {
         const cell = grid.getCell(x, y);
         if (cell && cell.terrain) {
           const terrainColor = getTerrainColor(cell.terrain);
-          grid.setCell(x, y, { ...cell, color: terrainColor });
+
+          // Apply elevation-based brightness modulation
+          // Elevation 0-1 maps to brightness 0.6-1.2 (darker low, brighter high)
+          if (cell.elevation !== undefined) {
+            const elevationFactor = 0.6 + cell.elevation * 0.6;
+            const color: [number, number, number, number] = [
+              Math.min(1.0, terrainColor[0] * elevationFactor),
+              Math.min(1.0, terrainColor[1] * elevationFactor),
+              Math.min(1.0, terrainColor[2] * elevationFactor),
+              terrainColor[3],
+            ];
+            grid.setCell(x, y, { ...cell, color });
+          } else {
+            grid.setCell(x, y, { ...cell, color: terrainColor });
+          }
         }
       }
     }
