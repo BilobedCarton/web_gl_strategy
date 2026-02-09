@@ -31,6 +31,7 @@ export class ProceduralTerrainGenerator {
   private latitude: number; // 0-1 range (0 = equator, 1 = pole)
   private mapType: MapType;
   private seaLevel: number; // 0-1 range, elevation below this is water
+  private moistureModifier: number; // Multiplier for moisture (0.5-1.5 range)
   private seed: number;
 
   constructor(seed?: number, mapType?: MapType, seaLevel: number = 0.35) {
@@ -41,6 +42,7 @@ export class ProceduralTerrainGenerator {
     this.temperatureNoise = new PerlinNoise(baseSeed + 2000);
     this.latitude = Math.random(); // Random latitude for variation
     this.seaLevel = seaLevel;
+    this.moistureModifier = 1.0; // Default: no modification
 
     // Random map type if not specified
     if (mapType !== undefined) {
@@ -73,6 +75,14 @@ export class ProceduralTerrainGenerator {
 
   public setSeaLevel(seaLevel: number): void {
     this.seaLevel = Math.max(0, Math.min(1, seaLevel));
+  }
+
+  public getMoistureModifier(): number {
+    return this.moistureModifier;
+  }
+
+  public setMoistureModifier(modifier: number): void {
+    this.moistureModifier = Math.max(0.5, Math.min(1.5, modifier));
   }
 
   // Create a seeded random number generator
@@ -239,6 +249,9 @@ export class ProceduralTerrainGenerator {
       // Cool regions: moderately reduce moisture
       moisture *= 0.7 + temperature * 0.3;
     }
+
+    // Apply global moisture modifier
+    moisture *= this.moistureModifier;
 
     return Math.max(0, Math.min(1, moisture));
   }

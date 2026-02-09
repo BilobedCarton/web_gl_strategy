@@ -42,6 +42,8 @@ const latitudeInput = document.getElementById("latitude") as HTMLInputElement;
 const latitudeValue = document.getElementById("latitudeValue") as HTMLSpanElement;
 const seaLevelInput = document.getElementById("seaLevel") as HTMLInputElement;
 const seaLevelValue = document.getElementById("seaLevelValue") as HTMLSpanElement;
+const moistureLevelInput = document.getElementById("moistureLevel") as HTMLInputElement;
+const moistureLevelValue = document.getElementById("moistureLevelValue") as HTMLSpanElement;
 const viewModeSelect = document.getElementById("viewMode") as HTMLSelectElement;
 const regenerateBtn = document.getElementById("regenerate") as HTMLButtonElement;
 
@@ -59,6 +61,7 @@ function generateMap() {
   const seedValue = seedInput.value ? parseInt(seedInput.value) : undefined;
   const latitudeValue = latitudeInput.value ? parseInt(latitudeInput.value) / 100 : undefined;
   const seaLevelValue = parseInt(seaLevelInput.value) / 100;
+  const moistureLevelValue = parseInt(moistureLevelInput.value) / 100;
 
   // Determine map type
   let mapType: MapType | undefined;
@@ -77,6 +80,9 @@ function generateMap() {
     terrainGenerator.setLatitude(latitudeValue);
   }
 
+  // Set moisture level
+  terrainGenerator.setMoistureModifier(moistureLevelValue);
+
   // Display the generated seed in the UI
   seedInput.value = terrainGenerator.getSeed().toString();
 
@@ -85,6 +91,7 @@ function generateMap() {
   console.log(`  Map Type: ${terrainGenerator.getMapType()}`);
   console.log(`  Latitude: ${terrainGenerator.getLatitude().toFixed(2)}`);
   console.log(`  Sea Level: ${terrainGenerator.getSeaLevel().toFixed(2)}`);
+  console.log(`  Moisture Level: ${terrainGenerator.getMoistureModifier().toFixed(2)}`);
 
   // Clear existing grid
   grid.clear();
@@ -225,6 +232,13 @@ latitudeInput.addEventListener("input", () => {
 seaLevelInput.addEventListener("input", () => {
   const value = parseInt(seaLevelInput.value);
   seaLevelValue.textContent = (value / 100).toFixed(2);
+  generateMap();
+});
+
+// Update moisture level value display and regenerate map
+moistureLevelInput.addEventListener("input", () => {
+  const value = parseInt(moistureLevelInput.value);
+  moistureLevelValue.textContent = (value / 100).toFixed(2);
   generateMap();
 });
 
