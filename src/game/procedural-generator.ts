@@ -381,8 +381,100 @@ export class ProceduralTerrainGenerator {
         currentY = lowestNeighbor.y;
       }
 
-      // Apply river terrain to all visited cells
+      // Apply river terrain to all visited cells with width variation
+      // Rivers get wider as they approach water
+      const riverCells = new Set<string>(visited);
+
+      // Calculate distance from each river cell to water
+      const cellDistances = new Map<string, number>();
       for (const key of visited) {
+        const [x, y] = key.split(",").map((s) => parseInt(s, 10));
+
+        // Find minimum distance to water using BFS
+        let minDistance = Infinity;
+        const queue: Array<{ x: number; y: number; dist: number }> = [{ x, y, dist: 0 }];
+        const visited = new Set<string>();
+
+        while (queue.length > 0) {
+          const current = queue.shift();
+          if (!current) break;
+
+          const currentKey = getKey(current.x, current.y);
+          if (visited.has(currentKey)) continue;
+          visited.add(currentKey);
+
+          const currentData = terrainMap.get(currentKey);
+          if (currentData && isWater(currentData.terrain)) {
+            minDistance = Math.min(minDistance, current.dist);
+            break; // Found water, stop searching
+          }
+
+          if (current.dist < 10) {
+            // Only search up to distance 10
+            const neighbors = getNeighbors(current.x, current.y);
+            for (const neighbor of neighbors) {
+              queue.push({ ...neighbor, dist: current.dist + 1 });
+            }
+          }
+        }
+
+        cellDistances.set(key, minDistance);
+      }
+
+      // Widen river based on distance to water
+      // Cells closer to water get wider
+      for (const key of visited) {
+        const distance = cellDistances.get(key) ?? Infinity;
+        const [x, y] = key.split(",").map((s) => parseInt(s, 10));
+
+        // River width increases as it approaches water
+        // Distance 0-2: width 2 (5 cells including center)
+        // Distance 3-5: width 1 (3 cells including center)
+        // Distance 6+: width 0 (1 cell, just the river itself)
+        let width = 0;
+        if (distance <= 2) {
+          width = 2;
+        } else if (distance <= 5) {
+          width = 1;
+        }
+
+        // Add adjacent cells to widen the river
+        if (width > 0) {
+          const expansionQueue: Array<{ x: number; y: number; depth: number }> = [
+            { x, y, depth: 0 },
+          ];
+          const expanded = new Set<string>();
+
+          while (expansionQueue.length > 0) {
+            const current = expansionQueue.shift();
+            if (!current) break;
+
+            const currentKey = getKey(current.x, current.y);
+            if (expanded.has(currentKey)) continue;
+            expanded.add(currentKey);
+
+            // Add this cell as a river cell
+            riverCells.add(currentKey);
+
+            // Continue expanding if within width limit
+            if (current.depth < width) {
+              const neighbors = getNeighbors(current.x, current.y);
+              for (const neighbor of neighbors) {
+                const neighborKey = getKey(neighbor.x, neighbor.y);
+                const neighborData = terrainMap.get(neighborKey);
+
+                // Only expand into land (not water)
+                if (neighborData && !isWater(neighborData.terrain)) {
+                  expansionQueue.push({ ...neighbor, depth: current.depth + 1 });
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Apply river terrain to all river cells (original path + widened areas)
+      for (const key of riverCells) {
         const data = terrainMap.get(key);
         if (data) {
           terrainMap.set(key, {
