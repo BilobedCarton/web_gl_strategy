@@ -75,6 +75,16 @@ export class ProceduralTerrainGenerator {
     this.seaLevel = Math.max(0, Math.min(1, seaLevel));
   }
 
+  // Create a seeded random number generator
+  private createSeededRandom(seed: number): () => number {
+    let state = seed;
+    return () => {
+      // Linear Congruential Generator (LCG) algorithm
+      state = (state * 1103515245 + 12345) % 2147483648;
+      return state / 2147483648;
+    };
+  }
+
   // Apply map-type specific shaping to elevation
   private applyMapShaping(
     elevation: number,
@@ -295,6 +305,9 @@ export class ProceduralTerrainGenerator {
     gridHeight: number,
     numRivers: number = 5,
   ): void {
+    // Create seeded random number generator for deterministic rivers
+    const seededRandom = this.createSeededRandom(this.seed + 3000);
+
     const getKey = (x: number, y: number): string => `${x},${y}`;
 
     const isWater = (terrain: TerrainType): boolean => {
@@ -341,7 +354,7 @@ export class ProceduralTerrainGenerator {
     // Generate rivers from random high points
     for (let i = 0; i < Math.min(numRivers, potentialStarts.length); i++) {
       // Pick a random starting point from the top candidates
-      const startIndex = Math.floor(Math.random() * Math.min(20, potentialStarts.length));
+      const startIndex = Math.floor(seededRandom() * Math.min(20, potentialStarts.length));
       const start = potentialStarts[startIndex];
 
       if (!start) continue;
