@@ -49,7 +49,7 @@ const regenerateBtn = document.getElementById("regenerate") as HTMLButtonElement
 let terrainGenerator: ProceduralTerrainGenerator;
 
 // View mode type
-type ViewMode = "terrain" | "elevation" | "moisture";
+type ViewMode = "terrain" | "elevation" | "moisture" | "temperature";
 let currentViewMode: ViewMode = "terrain";
 
 // Generate/regenerate the map
@@ -162,6 +162,23 @@ function updateGridView(): void {
           const r = 1.0 - moistureLevel * 0.8; // 1.0 to 0.2
           const g = 1.0 - moistureLevel * 0.5; // 1.0 to 0.5
           const b = 1.0; // Always 1.0
+          const color: [number, number, number, number] = [r, g, b, 1.0];
+          grid.setCell(x, y, { ...cell, color });
+        }
+      }
+    }
+  } else if (currentViewMode === "temperature") {
+    // Update colors to show temperature (blue to red)
+    for (let y = 0; y < gridHeight; y++) {
+      for (let x = 0; x < gridWidth; x++) {
+        const cell = grid.getCell(x, y);
+        if (cell && cell.temperature !== undefined) {
+          // Map temperature (0-1) to blue-to-red gradient
+          // 0 = blue (cold), 1 = red (hot)
+          const temp = cell.temperature;
+          const r = temp; // 0.0 to 1.0
+          const g = 0.0; // Keep at 0 for pure blue-to-red
+          const b = 1.0 - temp; // 1.0 to 0.0
           const color: [number, number, number, number] = [r, g, b, 1.0];
           grid.setCell(x, y, { ...cell, color });
         }
