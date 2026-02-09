@@ -64,6 +64,9 @@ function generateMap() {
   let mapType: MapType | undefined;
   if (mapTypeValue !== "random") {
     mapType = mapTypeValue as MapType;
+  } else if (terrainGenerator) {
+    // If "random" is selected and we already have a generator, preserve its map type
+    mapType = terrainGenerator.getMapType();
   }
 
   // Create terrain generator with custom settings
@@ -74,7 +77,11 @@ function generateMap() {
     terrainGenerator.setLatitude(latitudeValue);
   }
 
+  // Display the generated seed in the UI
+  seedInput.value = terrainGenerator.getSeed().toString();
+
   console.log("\n🗺️  Generating new terrain:");
+  console.log(`  Seed: ${terrainGenerator.getSeed()}`);
   console.log(`  Map Type: ${terrainGenerator.getMapType()}`);
   console.log(`  Latitude: ${terrainGenerator.getLatitude().toFixed(2)}`);
   console.log(`  Sea Level: ${terrainGenerator.getSeaLevel().toFixed(2)}`);
@@ -176,16 +183,18 @@ function updateGridView(): void {
   gridRenderer.updateFromGrid(grid);
 }
 
-// Update latitude value display
+// Update latitude value display and regenerate map
 latitudeInput.addEventListener("input", () => {
   const value = parseInt(latitudeInput.value);
   latitudeValue.textContent = (value / 100).toFixed(2);
+  generateMap();
 });
 
-// Update sea level value display
+// Update sea level value display and regenerate map
 seaLevelInput.addEventListener("input", () => {
   const value = parseInt(seaLevelInput.value);
   seaLevelValue.textContent = (value / 100).toFixed(2);
+  generateMap();
 });
 
 // Handle view mode change

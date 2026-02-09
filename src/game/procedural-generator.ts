@@ -31,9 +31,11 @@ export class ProceduralTerrainGenerator {
   private latitude: number; // 0-1 range (0 = equator, 1 = pole)
   private mapType: MapType;
   private seaLevel: number; // 0-1 range, elevation below this is water
+  private seed: number;
 
   constructor(seed?: number, mapType?: MapType, seaLevel: number = 0.35) {
     const baseSeed = seed ?? Math.floor(Math.random() * 10000);
+    this.seed = baseSeed;
     this.elevationNoise = new PerlinNoise(baseSeed);
     this.moistureNoise = new PerlinNoise(baseSeed + 1000);
     this.temperatureNoise = new PerlinNoise(baseSeed + 2000);
@@ -59,6 +61,10 @@ export class ProceduralTerrainGenerator {
 
   public getMapType(): MapType {
     return this.mapType;
+  }
+
+  public getSeed(): number {
+    return this.seed;
   }
 
   public getSeaLevel(): number {
