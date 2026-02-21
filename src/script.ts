@@ -4,7 +4,7 @@ import { Grid } from "./game/grid";
 import { createCellFromTerrainData, createRandomTerrainCell } from "./game/cell";
 import { GridRenderer } from "./rendering/grid-renderer";
 import { ProceduralTerrainGenerator, MapType, type TerrainData } from "./game/procedural-generator";
-import { getTerrainColor } from "./game/terrain";
+import { getTerrainColor, TerrainFeature } from "./game/terrain";
 
 // Initialize WebGL context
 const glContext = createGLContext("canvaselement", {
@@ -34,6 +34,16 @@ const gridRenderer = new GridRenderer(glContext, gridWidth * gridHeight);
 const cellWidth = width / gridWidth;
 const cellHeight = height / gridHeight;
 gridRenderer.setCellSize(cellWidth, cellHeight);
+
+// Feature overlay canvas (2D canvas layered on top of WebGL canvas)
+const overlayCanvas = document.getElementById("overlaycanvas") as HTMLCanvasElement;
+const overlayCtx = overlayCanvas.getContext("2d")!;
+
+const FeatureEmojis: Record<TerrainFeature, string> = {
+  [TerrainFeature.Forest]: "\u{1F332}",
+  [TerrainFeature.Jungle]: "\u{1F334}",
+  [TerrainFeature.Marsh]: "\u{1FAB7}",
+};
 
 // UI Elements
 const mapTypeSelect = document.getElementById("mapType") as HTMLSelectElement;
@@ -137,6 +147,27 @@ function generateMap() {
   updateGridView();
 }
 
+// Render feature emojis on the 2D overlay canvas
+function renderFeatureOverlay(): void {
+  overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+  const fontSize = Math.floor(Math.min(cellWidth, cellHeight) * 0.7);
+  overlayCtx.font = `${fontSize}px serif`;
+  overlayCtx.textAlign = "center";
+  overlayCtx.textBaseline = "middle";
+
+  for (let y = 0; y < gridHeight; y++) {
+    for (let x = 0; x < gridWidth; x++) {
+      const cell = grid.getCell(x, y);
+      if (cell?.feature) {
+        const emoji = FeatureEmojis[cell.feature];
+        const px = x * cellWidth + cellWidth / 2;
+        const py = y * cellHeight + cellHeight / 2;
+        overlayCtx.fillText(emoji, px, py);
+      }
+    }
+  }
+}
+
 // Update grid visualization based on current view mode
 function updateGridView(): void {
   if (currentViewMode === "elevation") {
@@ -192,10 +223,7 @@ function updateGridView(): void {
       for (let x = 0; x < gridWidth; x++) {
         const cell = grid.getCell(x, y);
         if (cell && cell.terrain) {
-          // Use purple for cells with terrain features, otherwise terrain color
-          const baseColor: [number, number, number, number] = cell.feature
-            ? [0.6, 0.2, 0.8, 1.0]
-            : getTerrainColor(cell.terrain);
+          const baseColor = getTerrainColor(cell.terrain);
 
           // Apply elevation-based brightness modulation
           // Elevation 0-1 maps to brightness 0.6-1.2 (darker low, brighter high)
@@ -217,6 +245,7 @@ function updateGridView(): void {
   }
 
   gridRenderer.updateFromGrid(grid);
+  renderFeatureOverlay();
 }
 
 // Update latitude value display and regenerate map

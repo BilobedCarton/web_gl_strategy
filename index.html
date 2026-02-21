@@ -97,12 +97,21 @@
 
       #canvas-container {
         flex: 1;
+        position: relative;
       }
 
       canvas {
         border: 2px solid #444;
         border-radius: 4px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      }
+
+      #overlaycanvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+        border: 2px solid transparent;
       }
 
       .info {
@@ -188,6 +197,7 @@
 
     <div id="canvas-container">
       <canvas id="canvaselement" width="700" height="700"></canvas>
+      <canvas id="overlaycanvas" width="700" height="700"></canvas>
     </div>
 
     <script type="module" src="src/script.js"></script>
