@@ -3,7 +3,7 @@ import { Camera } from "./core/camera";
 import { Grid } from "./game/grid";
 import { createCellFromTerrainData, createRandomTerrainCell } from "./game/cell";
 import { GridRenderer } from "./rendering/grid-renderer";
-import { ProceduralTerrainGenerator, MapType } from "./game/procedural-generator";
+import { ProceduralTerrainGenerator, MapType, type TerrainData } from "./game/procedural-generator";
 import { getTerrainColor } from "./game/terrain";
 
 // Initialize WebGL context
@@ -97,16 +97,7 @@ function generateMap() {
   grid.clear();
 
   // First pass: generate all terrain data
-  const terrainMap = new Map<
-    string,
-    {
-      terrain: import("./game/terrain").TerrainType;
-      elevation: number;
-      elevationType: import("./game/procedural-generator").ElevationType;
-      temperature: number;
-      moisture: number;
-    }
-  >();
+  const terrainMap = new Map<string, TerrainData>();
 
   for (let y = 0; y < gridHeight; y++) {
     for (let x = 0; x < gridWidth; x++) {
@@ -121,6 +112,9 @@ function generateMap() {
   // Validate coast terrain connectivity
   terrainGenerator.validateCoastTerrain(terrainMap, gridWidth, gridHeight);
 
+  // Assign terrain features (forests, jungles, marshes)
+  terrainGenerator.generateFeatures(terrainMap, gridWidth, gridHeight);
+
   // Populate grid with validated terrain
   for (let y = 0; y < gridHeight; y++) {
     for (let x = 0; x < gridWidth; x++) {
@@ -132,6 +126,7 @@ function generateMap() {
         terrainData.elevationType,
         terrainData.temperature,
         terrainData.moisture,
+        terrainData.feature,
       );
 
       grid.setCell(x, y, cell);
@@ -197,21 +192,24 @@ function updateGridView(): void {
       for (let x = 0; x < gridWidth; x++) {
         const cell = grid.getCell(x, y);
         if (cell && cell.terrain) {
-          const terrainColor = getTerrainColor(cell.terrain);
+          // Use purple for cells with terrain features, otherwise terrain color
+          const baseColor: [number, number, number, number] = cell.feature
+            ? [0.6, 0.2, 0.8, 1.0]
+            : getTerrainColor(cell.terrain);
 
           // Apply elevation-based brightness modulation
           // Elevation 0-1 maps to brightness 0.6-1.2 (darker low, brighter high)
           if (cell.elevation !== undefined) {
             const elevationFactor = 0.6 + cell.elevation * 0.6;
             const color: [number, number, number, number] = [
-              Math.min(1.0, terrainColor[0] * elevationFactor),
-              Math.min(1.0, terrainColor[1] * elevationFactor),
-              Math.min(1.0, terrainColor[2] * elevationFactor),
-              terrainColor[3],
+              Math.min(1.0, baseColor[0] * elevationFactor),
+              Math.min(1.0, baseColor[1] * elevationFactor),
+              Math.min(1.0, baseColor[2] * elevationFactor),
+              baseColor[3],
             ];
             grid.setCell(x, y, { ...cell, color });
           } else {
-            grid.setCell(x, y, { ...cell, color: terrainColor });
+            grid.setCell(x, y, { ...cell, color: baseColor });
           }
         }
       }
@@ -288,6 +286,7 @@ canvas.addEventListener("click", (event: MouseEvent) => {
       console.log(`Elevation: ${currentCell.elevation?.toFixed(3)} (${currentCell.elevationType})`);
       console.log(`Temperature: ${currentCell.temperature?.toFixed(3)}`);
       console.log(`Moisture: ${currentCell.moisture?.toFixed(3)}`);
+      console.log(`Feature: ${currentCell.feature ?? "none"}`);
     }
   }
 });

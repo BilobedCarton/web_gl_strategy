@@ -1,6 +1,6 @@
 import { PerlinNoise } from "./perlin-noise";
 import type { TerrainType } from "./terrain";
-import { TerrainType as TT } from "./terrain";
+import { TerrainType as TT, TerrainFeature } from "./terrain";
 
 export enum ElevationType {
   Flat = "flat",
@@ -22,12 +22,14 @@ export interface TerrainData {
   elevationType: ElevationType;
   temperature: number; // 0-1 range (0 = cold, 1 = hot)
   moisture: number; // 0-1 range (0 = dry, 1 = wet)
+  feature?: TerrainFeature;
 }
 
 export class ProceduralTerrainGenerator {
   private elevationNoise: PerlinNoise;
   private moistureNoise: PerlinNoise;
   private temperatureNoise: PerlinNoise;
+  private featureNoise: PerlinNoise;
   private latitude: number; // 0-1 range (0 = equator, 1 = pole)
   private mapType: MapType;
   private seaLevel: number; // 0-1 range, elevation below this is water
@@ -40,6 +42,7 @@ export class ProceduralTerrainGenerator {
     this.elevationNoise = new PerlinNoise(baseSeed);
     this.moistureNoise = new PerlinNoise(baseSeed + 1000);
     this.temperatureNoise = new PerlinNoise(baseSeed + 2000);
+    this.featureNoise = new PerlinNoise(baseSeed + 4000);
     this.latitude = Math.random(); // Random latitude for variation
     this.seaLevel = seaLevel;
     this.moistureModifier = 1.0; // Default: no modification
@@ -659,6 +662,69 @@ export class ProceduralTerrainGenerator {
             terrain: newTerrain,
           });
         }
+      }
+    }
+  }
+
+  // Determine terrain feature based on climate and terrain type
+  private determineFeature(
+    terrain: TerrainType,
+    elevationType: ElevationType,
+    temperature: number,
+    moisture: number,
+  ): TerrainFeature | undefined {
+    // Features only appear on Plains or Wetlands, not on mountains
+    if (elevationType === ElevationType.Mountain) return undefined;
+    if (terrain !== TT.Plains && terrain !== TT.Wetlands) return undefined;
+
+    // Jungle: hot and wet
+    if (temperature > 0.7 && moisture > 0.5) {
+      return TerrainFeature.Jungle;
+    }
+
+    // Marsh: very wet wetlands
+    if (moisture > 0.7 && terrain === TT.Wetlands) {
+      return TerrainFeature.Marsh;
+    }
+
+    // Forest: temperate with moderate moisture
+    if (temperature >= 0.3 && temperature <= 0.7 && moisture >= 0.4 && moisture <= 0.7) {
+      return TerrainFeature.Forest;
+    }
+
+    return undefined;
+  }
+
+  // Assign terrain features to all cells in the terrain map
+  // Uses noise to create natural clumps — features are less common overall
+  // but cluster together spatially due to Perlin noise coherence
+  public generateFeatures(
+    terrainMap: Map<string, TerrainData>,
+    gridWidth: number,
+    gridHeight: number,
+  ): void {
+    const featureThreshold = 0.15; // Higher = sparser features
+
+    for (const [key, data] of terrainMap) {
+      const feature = this.determineFeature(
+        data.terrain,
+        data.elevationType,
+        data.temperature,
+        data.moisture,
+      );
+      if (!feature) continue;
+
+      // Sample noise at this cell's position for spatial clustering
+      const parts = key.split(",");
+      const x = parseInt(parts[0]!, 10);
+      const y = parseInt(parts[1]!, 10);
+      const nx = x / gridWidth;
+      const ny = y / gridHeight;
+      const noise = this.featureNoise.octaveNoise2D(nx * 6, ny * 6, 3, 0.5);
+
+      // Only place feature if noise exceeds threshold (creates clumps)
+      if (noise > featureThreshold) {
+        terrainMap.set(key, { ...data, feature });
       }
     }
   }

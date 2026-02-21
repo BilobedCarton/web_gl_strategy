@@ -1,3 +1,9 @@
+export enum TerrainFeature {
+  Forest = "forest",
+  Jungle = "jungle",
+  Marsh = "marsh",
+}
+
 export enum TerrainType {
   Shallows = "shallows",
   DeepWaters = "deep_waters",

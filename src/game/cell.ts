@@ -1,4 +1,4 @@
-import type { TerrainType } from "./terrain";
+import type { TerrainType, TerrainFeature } from "./terrain";
 import { getTerrainColor, getRandomTerrainType } from "./terrain";
 import type { ElevationType } from "./procedural-generator";
 
@@ -11,8 +11,7 @@ export interface CellData {
   elevationType?: ElevationType; // Step-based elevation classification
   temperature?: number; // Temperature value (0-1 range)
   moisture?: number; // Moisture value (0-1 range)
-  // Future extensibility:
-  // textureId?: number;
+  feature?: TerrainFeature; // Terrain feature overlay (forest, jungle, marsh)
 }
 
 // Helper function to create a cell with a color
@@ -50,8 +49,9 @@ export function createCellFromTerrainData(
   elevationType: ElevationType,
   temperature: number,
   moisture: number,
+  feature?: TerrainFeature,
 ): CellData {
-  return {
+  const cell: CellData = {
     color: getTerrainColor(terrain),
     terrain,
     elevation,
@@ -59,4 +59,8 @@ export function createCellFromTerrainData(
     temperature,
     moisture,
   };
+  if (feature) {
+    cell.feature = feature;
+  }
+  return cell;
 }
