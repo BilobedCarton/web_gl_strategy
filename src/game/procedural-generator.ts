@@ -441,13 +441,13 @@ export class ProceduralTerrainGenerator {
   private determineFeature(
     terrain: TerrainType,
     elevation: number,
-    meanLandElevation: number,
+    mountainThreshold: number,
     temperature: number,
     moisture: number,
   ): TerrainFeature | undefined {
     // Mountains: land cells significantly above the mean land elevation
     const isWater = terrain === TT.DeepWaters || terrain === TT.Shallows;
-    if (!isWater && elevation > meanLandElevation * 1.4) {
+    if (!isWater && elevation > mountainThreshold) {
       return TerrainFeature.Mountain;
     }
 
@@ -482,23 +482,24 @@ export class ProceduralTerrainGenerator {
   ): void {
     const featureThreshold = 0.15; // Higher = sparser features
 
-    // Compute mean elevation of land cells for relative mountain detection
-    let landElevationSum = 0;
-    let landCellCount = 0;
+    // Determine mountain threshold using the 85th percentile of land elevations
+    // This ensures mountains are always the top ~15% of land, regardless of map type
+    const landElevations: number[] = [];
     for (const data of terrainMap.values()) {
       const isWater = data.terrain === TT.DeepWaters || data.terrain === TT.Shallows;
       if (!isWater) {
-        landElevationSum += data.elevation;
-        landCellCount++;
+        landElevations.push(data.elevation);
       }
     }
-    const meanLandElevation = landCellCount > 0 ? landElevationSum / landCellCount : 0.5;
+    landElevations.sort((a, b) => a - b);
+    const mountainThreshold =
+      landElevations.length > 0 ? landElevations[Math.floor(landElevations.length * 0.85)]! : 0.7;
 
     for (const [key, data] of terrainMap) {
       const feature = this.determineFeature(
         data.terrain,
         data.elevation,
-        meanLandElevation,
+        mountainThreshold,
         data.temperature,
         data.moisture,
       );
