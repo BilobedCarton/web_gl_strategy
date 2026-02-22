@@ -49,6 +49,7 @@ const FeatureEmojis: Record<TerrainFeature, string> = {
 // UI Elements
 const mapTypeSelect = document.getElementById("mapType") as HTMLSelectElement;
 const seedInput = document.getElementById("seed") as HTMLInputElement;
+const currentSeedDisplay = document.getElementById("currentSeed") as HTMLSpanElement;
 const latitudeInput = document.getElementById("latitude") as HTMLInputElement;
 const latitudeValue = document.getElementById("latitudeValue") as HTMLSpanElement;
 const seaLevelInput = document.getElementById("seaLevel") as HTMLInputElement;
@@ -95,7 +96,7 @@ function generateMap() {
   terrainGenerator.setMoistureModifier(moistureLevelValue);
 
   // Display the generated seed in the UI
-  seedInput.value = terrainGenerator.getSeed().toString();
+  currentSeedDisplay.textContent = terrainGenerator.getSeed().toString();
 
   console.log("\n🗺️  Generating new terrain:");
   console.log(`  Seed: ${terrainGenerator.getSeed()}`);
