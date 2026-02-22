@@ -43,6 +43,7 @@ const FeatureEmojis: Record<TerrainFeature, string> = {
   [TerrainFeature.Forest]: "\u{1F332}",
   [TerrainFeature.Jungle]: "\u{1F334}",
   [TerrainFeature.Marsh]: "\u{1FAB7}",
+  [TerrainFeature.Mountain]: "\u{26F0}\u{FE0F}",
 };
 
 // UI Elements

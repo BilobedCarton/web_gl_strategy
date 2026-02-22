@@ -2,6 +2,7 @@ export enum TerrainFeature {
   Forest = "forest",
   Jungle = "jungle",
   Marsh = "marsh",
+  Mountain = "mountain",
 }
 
 export enum TerrainType {

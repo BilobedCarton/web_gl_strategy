@@ -669,12 +669,18 @@ export class ProceduralTerrainGenerator {
   // Determine terrain feature based on climate and terrain type
   private determineFeature(
     terrain: TerrainType,
-    elevationType: ElevationType,
+    elevation: number,
+    meanLandElevation: number,
     temperature: number,
     moisture: number,
   ): TerrainFeature | undefined {
-    // Features only appear on Plains or Wetlands, not on mountains
-    if (elevationType === ElevationType.Mountain) return undefined;
+    // Mountains: land cells significantly above the mean land elevation
+    const isWater = terrain === TT.DeepWaters || terrain === TT.Shallows || terrain === TT.River;
+    if (!isWater && elevation > meanLandElevation * 1.4) {
+      return TerrainFeature.Mountain;
+    }
+
+    // Other features only appear on Plains or Wetlands
     if (terrain !== TT.Plains && terrain !== TT.Wetlands) return undefined;
 
     // Jungle: hot and wet
@@ -705,14 +711,34 @@ export class ProceduralTerrainGenerator {
   ): void {
     const featureThreshold = 0.15; // Higher = sparser features
 
+    // Compute mean elevation of land cells for relative mountain detection
+    let landElevationSum = 0;
+    let landCellCount = 0;
+    for (const data of terrainMap.values()) {
+      const isWater =
+        data.terrain === TT.DeepWaters || data.terrain === TT.Shallows || data.terrain === TT.River;
+      if (!isWater) {
+        landElevationSum += data.elevation;
+        landCellCount++;
+      }
+    }
+    const meanLandElevation = landCellCount > 0 ? landElevationSum / landCellCount : 0.5;
+
     for (const [key, data] of terrainMap) {
       const feature = this.determineFeature(
         data.terrain,
-        data.elevationType,
+        data.elevation,
+        meanLandElevation,
         data.temperature,
         data.moisture,
       );
       if (!feature) continue;
+
+      // Mountains are already clustered by elevation — no noise filtering needed
+      if (feature === TerrainFeature.Mountain) {
+        terrainMap.set(key, { ...data, feature });
+        continue;
+      }
 
       // Sample noise at this cell's position for spatial clustering
       const parts = key.split(",");
