@@ -117,9 +117,6 @@ function generateMap() {
     }
   }
 
-  // Generate rivers
-  terrainGenerator.generateRivers(terrainMap, gridWidth, gridHeight);
-
   // Validate coast terrain connectivity
   terrainGenerator.validateCoastTerrain(terrainMap, gridWidth, gridHeight);
 
@@ -329,11 +326,8 @@ console.log("📊 Procedural terrain generation complete");
 console.log("   - Perlin noise elevation with configurable sea level");
 console.log("   - Temperature based on latitude");
 console.log("   - Moisture/watershed calculation");
-console.log("   - River generation from high elevations");
 console.log("   - 5 map types (Island, Inland, Peninsula, Archipelago, Coastal)");
-console.log(
-  "   - 8 terrain types (DeepWaters, Shallows, River, Coast, Plains, Wetlands, Tundra, Desert)",
-);
+console.log("   - 7 terrain types (DeepWaters, Shallows, Coast, Plains, Wetlands, Tundra, Desert)");
 console.log("   - 3 land elevation types (Flat, Hills, Mountain)");
 console.log("\n💡 Click any cell to see detailed terrain info!");
 console.log("🎮 Use the controls panel to customize map generation!\n");
