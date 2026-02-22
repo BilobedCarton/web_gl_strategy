@@ -13,6 +13,7 @@ export enum TerrainType {
   Tundra = "tundra",
   Desert = "desert",
   Coast = "coast",
+  River = "river",
 }
 
 // RGBA color values for each terrain type (0-1 range)
@@ -24,6 +25,7 @@ export const TerrainColors: Record<TerrainType, [number, number, number, number]
   [TerrainType.Tundra]: [0.7, 0.65, 0.55, 1.0], // Pale brown
   [TerrainType.Desert]: [0.9, 0.8, 0.5, 1.0], // Pale yellow
   [TerrainType.Coast]: [0.99, 0.95, 0.65, 1.0], // White
+  [TerrainType.River]: [0.3, 0.5, 0.9, 1.0], // Medium blue
 };
 
 export function getTerrainColor(terrain: TerrainType): [number, number, number, number] {

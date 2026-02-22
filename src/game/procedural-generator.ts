@@ -486,8 +486,7 @@ export class ProceduralTerrainGenerator {
     let landElevationSum = 0;
     let landCellCount = 0;
     for (const data of terrainMap.values()) {
-      const isWater =
-        data.terrain === TT.DeepWaters || data.terrain === TT.Shallows || data.terrain === TT.River;
+      const isWater = data.terrain === TT.DeepWaters || data.terrain === TT.Shallows;
       if (!isWater) {
         landElevationSum += data.elevation;
         landCellCount++;
@@ -522,6 +521,200 @@ export class ProceduralTerrainGenerator {
       // Only place feature if noise exceeds threshold (creates clumps)
       if (noise > featureThreshold) {
         terrainMap.set(key, { ...data, feature });
+      }
+    }
+  }
+
+  // Generate rivers flowing downhill from mountain sources
+  // Rivers trace gradient descent from mountains to water or local minima
+  // Local minima form small lakes (Shallows terrain)
+  public generateRivers(
+    terrainMap: Map<string, TerrainData>,
+    gridWidth: number,
+    gridHeight: number,
+  ): void {
+    const getKey = (x: number, y: number): string => `${x},${y}`;
+
+    const isWater = (terrain: TerrainType): boolean => {
+      return terrain === TT.DeepWaters || terrain === TT.Shallows;
+    };
+
+    const getNeighbors = (x: number, y: number): Array<{ x: number; y: number }> => {
+      const neighbors: Array<{ x: number; y: number }> = [];
+      for (const [dx, dy] of [
+        [0, -1],
+        [1, 0],
+        [0, 1],
+        [-1, 0],
+      ] as const) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx >= 0 && nx < gridWidth && ny >= 0 && ny < gridHeight) {
+          neighbors.push({ x: nx, y: ny });
+        }
+      }
+      return neighbors;
+    };
+
+    // Collect all mountain cell keys
+    const mountainKeys = new Set<string>();
+    for (const [key, data] of terrainMap) {
+      if (data.feature === TerrainFeature.Mountain) {
+        mountainKeys.add(key);
+      }
+    }
+
+    if (mountainKeys.size === 0) return;
+
+    // Flood-fill to find clusters of adjacent mountains, pick highest cell per cluster
+    const clustered = new Set<string>();
+    const sources: Array<{ x: number; y: number; elevation: number }> = [];
+
+    for (const startKey of mountainKeys) {
+      if (clustered.has(startKey)) continue;
+
+      // BFS to find all cells in this cluster
+      const queue = [startKey];
+      let best: { key: string; elevation: number } = {
+        key: startKey,
+        elevation: terrainMap.get(startKey)!.elevation,
+      };
+
+      while (queue.length > 0) {
+        const key = queue.shift()!;
+        if (clustered.has(key)) continue;
+        clustered.add(key);
+
+        const data = terrainMap.get(key)!;
+        if (data.elevation > best.elevation) {
+          best = { key, elevation: data.elevation };
+        }
+
+        // Check cardinal neighbors for more mountain cells
+        const parts = key.split(",");
+        const cx = parseInt(parts[0]!, 10);
+        const cy = parseInt(parts[1]!, 10);
+        for (const n of getNeighbors(cx, cy)) {
+          const nKey = getKey(n.x, n.y);
+          if (!clustered.has(nKey) && mountainKeys.has(nKey)) {
+            queue.push(nKey);
+          }
+        }
+      }
+
+      const bestParts = best.key.split(",");
+      sources.push({
+        x: parseInt(bestParts[0]!, 10),
+        y: parseInt(bestParts[1]!, 10),
+        elevation: best.elevation,
+      });
+    }
+
+    const allRiverCells = new Set<string>();
+
+    for (const source of sources) {
+      // Trace river path downhill
+      let curX = source.x;
+      let curY = source.y;
+      const path: Array<{ x: number; y: number }> = [];
+      const visited = new Set<string>();
+      let reachedWater = false;
+      let maxSteps = 200;
+
+      while (maxSteps-- > 0) {
+        const key = getKey(curX, curY);
+        if (visited.has(key)) break;
+        visited.add(key);
+
+        const data = terrainMap.get(key);
+        if (!data) break;
+
+        // Stop if we reached existing water
+        if (isWater(data.terrain) || data.terrain === TT.River) {
+          reachedWater = true;
+          break;
+        }
+
+        // Also stop if we hit an existing river from another path
+        if (allRiverCells.has(key)) {
+          reachedWater = true; // merging into existing river counts as reaching water
+          break;
+        }
+
+        path.push({ x: curX, y: curY });
+
+        // Find lowest cardinal neighbor
+        const neighbors = getNeighbors(curX, curY);
+        let lowest: { x: number; y: number; elevation: number } | null = null;
+
+        for (const n of neighbors) {
+          const nKey = getKey(n.x, n.y);
+          if (visited.has(nKey)) continue;
+          const nData = terrainMap.get(nKey);
+          if (!nData) continue;
+          if (lowest === null || nData.elevation < lowest.elevation) {
+            lowest = { ...n, elevation: nData.elevation };
+          }
+        }
+
+        // If no lower neighbor, we're at a local minimum
+        if (lowest === null || lowest.elevation >= data.elevation) {
+          break;
+        }
+
+        curX = lowest.x;
+        curY = lowest.y;
+      }
+
+      // Skip very short rivers (< 3 cells)
+      if (path.length < 3) continue;
+
+      // Apply river terrain to path cells (skip the first cell — keep the mountain source)
+      for (let j = 1; j < path.length; j++) {
+        const cell = path[j]!;
+        const key = getKey(cell.x, cell.y);
+        const data = terrainMap.get(key);
+        if (data) {
+          const updated: TerrainData = { ...data, terrain: TT.River };
+          // Clear feature on river cells
+          delete updated.feature;
+          terrainMap.set(key, updated);
+          allRiverCells.add(key);
+        }
+      }
+
+      // Form a lake if we didn't reach water
+      if (!reachedWater && path.length > 0) {
+        const terminal = path[path.length - 1]!;
+        const terminalKey = getKey(terminal.x, terminal.y);
+        const terminalData = terrainMap.get(terminalKey);
+        if (!terminalData) continue;
+
+        // Convert terminal cell and similar-elevation neighbors to Shallows (lake)
+        const lakeElevation = terminalData.elevation;
+        const lakeCells = [terminalKey];
+
+        for (const n of getNeighbors(terminal.x, terminal.y)) {
+          const nKey = getKey(n.x, n.y);
+          const nData = terrainMap.get(nKey);
+          if (
+            nData &&
+            !isWater(nData.terrain) &&
+            Math.abs(nData.elevation - lakeElevation) < 0.05
+          ) {
+            lakeCells.push(nKey);
+          }
+        }
+
+        for (const lakeKey of lakeCells) {
+          const data = terrainMap.get(lakeKey);
+          if (data) {
+            const updated: TerrainData = { ...data, terrain: TT.Shallows };
+            delete updated.feature;
+            terrainMap.set(lakeKey, updated);
+            allRiverCells.add(lakeKey);
+          }
+        }
       }
     }
   }

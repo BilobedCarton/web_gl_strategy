@@ -120,8 +120,11 @@ function generateMap() {
   // Validate coast terrain connectivity
   terrainGenerator.validateCoastTerrain(terrainMap, gridWidth, gridHeight);
 
-  // Assign terrain features (forests, jungles, marshes)
+  // Assign terrain features (forests, jungles, marshes, mountains)
   terrainGenerator.generateFeatures(terrainMap, gridWidth, gridHeight);
+
+  // Generate rivers from mountain runoff
+  terrainGenerator.generateRivers(terrainMap, gridWidth, gridHeight);
 
   // Populate grid with validated terrain
   for (let y = 0; y < gridHeight; y++) {
