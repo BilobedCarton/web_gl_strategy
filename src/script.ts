@@ -67,10 +67,14 @@ type ViewMode = "terrain" | "elevation" | "moisture" | "temperature";
 let currentViewMode: ViewMode = "terrain";
 
 // Generate/regenerate the map
-function generateMap() {
+function generateMap(preserveSeed = false) {
   // Get values from UI
   const mapTypeValue = mapTypeSelect.value;
-  const seedValue = seedInput.value ? parseInt(seedInput.value) : undefined;
+  const seedValue = seedInput.value
+    ? parseInt(seedInput.value)
+    : preserveSeed
+      ? terrainGenerator?.getSeed()
+      : undefined;
   const latitudeValue = latitudeInput.value ? parseInt(latitudeInput.value) / 100 : undefined;
   const seaLevelValue = parseInt(seaLevelInput.value) / 100;
   const moistureLevelValue = parseInt(moistureLevelInput.value) / 100;
@@ -254,21 +258,21 @@ function updateGridView(): void {
 latitudeInput.addEventListener("input", () => {
   const value = parseInt(latitudeInput.value);
   latitudeValue.textContent = (value / 100).toFixed(2);
-  generateMap();
+  generateMap(true);
 });
 
 // Update sea level value display and regenerate map
 seaLevelInput.addEventListener("input", () => {
   const value = parseInt(seaLevelInput.value);
   seaLevelValue.textContent = (value / 100).toFixed(2);
-  generateMap();
+  generateMap(true);
 });
 
 // Update moisture level value display and regenerate map
 moistureLevelInput.addEventListener("input", () => {
   const value = parseInt(moistureLevelInput.value);
   moistureLevelValue.textContent = (value / 100).toFixed(2);
-  generateMap();
+  generateMap(true);
 });
 
 // Handle view mode change
