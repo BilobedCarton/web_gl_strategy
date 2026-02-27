@@ -497,7 +497,7 @@ function showCityDetail(cityId: string): void {
       .join("<br>") || "Empty";
   cityDetailStockpile.innerHTML = stockHtml;
 
-  // Links with allocation controls
+  // Links with bidirectional allocation controls
   let linksHtml = "";
   for (const linkId of city.linkIds) {
     const link = gameState.links.get(linkId);
@@ -506,21 +506,37 @@ function showCityDetail(cityId: string): void {
     const otherCity = gameState.cities.find((c) => c.id === otherCityId);
     if (!otherCity) continue;
 
-    const direction = link.cityA === cityId ? "a-to-b" : "b-to-a";
+    const sendDir: "a-to-b" | "b-to-a" = link.cityA === cityId ? "a-to-b" : "b-to-a";
+    const recvDir: "a-to-b" | "b-to-a" = link.cityA === cityId ? "b-to-a" : "a-to-b";
     const used = link.allocations.reduce((sum, a) => sum + a.amount, 0);
+    const sendAlloc = link.allocations.find((a) => a.direction === sendDir);
+    const recvAlloc = link.allocations.find((a) => a.direction === recvDir);
+
+    const makeRow = (
+      label: string,
+      dir: string,
+      alloc: { resource: ResourceType; amount: number } | undefined,
+    ) => `
+      <div style="margin-top: 4px; display: flex; gap: 4px; align-items: center">
+        <span style="font-size: 10px; color: #888; width: 24px">${label}</span>
+        <select data-link-id="${linkId}" data-direction="${dir}" class="trade-resource" style="flex: 1; padding: 2px; font-size: 11px">
+          ${Object.values(ResourceType)
+            .map(
+              (r) =>
+                `<option value="${r}" ${alloc?.resource === r ? "selected" : ""}>${ResourceNames[r]}</option>`,
+            )
+            .join("")}
+        </select>
+        <input type="number" class="trade-amount" data-link-id="${linkId}" data-direction="${dir}" min="0" max="${link.capacity}" value="${alloc?.amount ?? 0}" style="width: 40px; padding: 2px; font-size: 11px">
+        <button class="trade-apply" data-link-id="${linkId}" data-direction="${dir}" style="padding: 2px 6px; font-size: 11px">Set</button>
+      </div>
+    `;
 
     linksHtml += `
       <div style="margin-bottom: 8px; padding: 6px; background: #222; border-radius: 3px">
-        <div>\u2192 ${otherCity.name} (${used}/${link.capacity})</div>
-        <div style="margin-top: 4px; display: flex; gap: 4px; align-items: center">
-          <select data-link-id="${linkId}" data-direction="${direction}" class="trade-resource" style="flex: 1; padding: 2px; font-size: 11px">
-            ${Object.values(ResourceType)
-              .map((r) => `<option value="${r}">${ResourceNames[r]}</option>`)
-              .join("")}
-          </select>
-          <input type="number" class="trade-amount" data-link-id="${linkId}" min="0" max="${link.capacity}" value="0" style="width: 40px; padding: 2px; font-size: 11px">
-          <button class="trade-apply" data-link-id="${linkId}" data-direction="${direction}" style="padding: 2px 6px; font-size: 11px">Set</button>
-        </div>
+        <div>\u2194 ${otherCity.name} (${used}/${link.capacity})</div>
+        ${makeRow("\u2192", sendDir, sendAlloc)}
+        ${makeRow("\u2190", recvDir, recvAlloc)}
       </div>
     `;
   }
@@ -531,14 +547,18 @@ function showCityDetail(cityId: string): void {
     btn.addEventListener("click", () => {
       const lId = (btn as HTMLElement).dataset.linkId!;
       const dir = (btn as HTMLElement).dataset.direction! as "a-to-b" | "b-to-a";
-      const container = btn.parentElement!;
-      const resourceSelect = container.querySelector(".trade-resource") as HTMLSelectElement;
-      const amountInput = container.querySelector(".trade-amount") as HTMLInputElement;
+      const row = btn.parentElement!;
+      const resourceSelect = row.querySelector(
+        `.trade-resource[data-direction="${dir}"]`,
+      ) as HTMLSelectElement;
+      const amountInput = row.querySelector(
+        `.trade-amount[data-direction="${dir}"]`,
+      ) as HTMLInputElement;
 
       const resource = resourceSelect.value as ResourceType;
       const amount = parseInt(amountInput.value) || 0;
 
-      gameState.setAllocation(lId, [{ resource, amount, direction: dir }]);
+      gameState.setAllocation(lId, dir, resource, amount);
       showCityDetail(cityId); // refresh
       renderFeatureOverlay(); // update link labels
     });

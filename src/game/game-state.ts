@@ -114,11 +114,20 @@ export class GameState {
     return link;
   }
 
-  // Set trade allocation on a link
-  public setAllocation(linkId: string, allocations: TradeAllocation[]): void {
+  // Set trade allocation on a link for a given direction, preserving the other direction
+  public setAllocation(
+    linkId: string,
+    direction: "a-to-b" | "b-to-a",
+    resource: ResourceType,
+    amount: number,
+  ): void {
     const link = this.links.get(linkId);
     if (!link) return;
-    link.allocations = allocations;
+    // Remove existing allocations for this direction
+    link.allocations = link.allocations.filter((a) => a.direction !== direction);
+    if (amount > 0) {
+      link.allocations.push({ resource, amount, direction });
+    }
   }
 
   // Get score for a city (count of unique resource types received via trade)
