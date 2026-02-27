@@ -1,6 +1,6 @@
 import type { TerrainData } from "./procedural-generator";
 import { TerrainType, TerrainFeature } from "./terrain";
-import { City, CityColors, CityNamePool, createCity } from "./city";
+import { type City, CityColors, CityNamePool, createCity } from "./city";
 import { ResourceType, tileProducesResource } from "./resources";
 
 const MIN_CITY_DISTANCE = 15;
