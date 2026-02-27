@@ -25,10 +25,13 @@ export class GameState {
   // Resolve trade: move goods along links based on allocations
   public resolveTrade(): void {
     for (const link of this.links.values()) {
-      let capacityUsed = 0;
+      // Capacity is per-direction
+      let aToBUsed = 0;
+      let bToAUsed = 0;
 
       for (const alloc of link.allocations) {
-        const remaining = link.capacity - capacityUsed;
+        const used = alloc.direction === "a-to-b" ? aToBUsed : bToAUsed;
+        const remaining = link.capacity - used;
         const actual = Math.min(alloc.amount, remaining);
         if (actual <= 0) continue;
 
@@ -54,7 +57,8 @@ export class GameState {
         );
         toCity.receivedResources.add(alloc.resource);
 
-        capacityUsed += transferred;
+        if (alloc.direction === "a-to-b") aToBUsed += transferred;
+        else bToAUsed += transferred;
       }
     }
   }
@@ -75,10 +79,12 @@ export class GameState {
     // Check link limits (max 3 per city)
     if (cityA.linkIds.length >= 3 || cityB.linkIds.length >= 3) return null;
 
-    // Check construction cost: 10 Timber + 5 Iron Ore from city A
+    // First trade link per city is free; subsequent links cost resources
+    const isFirstLink = cityA.linkIds.length === 0;
+
     const timber = cityA.stockpile.get(ResourceType.Timber) ?? 0;
     const iron = cityA.stockpile.get(ResourceType.IronOre) ?? 0;
-    if (timber < 10 || iron < 5) return null;
+    if (!isFirstLink && (timber < 10 || iron < 5)) return null;
 
     // Find path
     const pathResult = findPath(
@@ -92,9 +98,11 @@ export class GameState {
     );
     if (!pathResult) return null;
 
-    // Deduct construction cost
-    cityA.stockpile.set(ResourceType.Timber, timber - 10);
-    cityA.stockpile.set(ResourceType.IronOre, iron - 5);
+    // Deduct construction cost (skip for first link)
+    if (!isFirstLink) {
+      cityA.stockpile.set(ResourceType.Timber, timber - 10);
+      cityA.stockpile.set(ResourceType.IronOre, iron - 5);
+    }
 
     const linkId = `link-${this.nextLinkId++}`;
     const link: TradeLink = {
@@ -141,7 +149,12 @@ export class GameState {
   public previewLink(
     cityAId: string,
     cityBId: string,
-  ): { path: Array<{ x: number; y: number }>; cost: number; capacity: number } | null {
+  ): {
+    path: Array<{ x: number; y: number }>;
+    cost: number;
+    capacity: number;
+    free: boolean;
+  } | null {
     const cityA = this.cities.find((c) => c.id === cityAId);
     const cityB = this.cities.find((c) => c.id === cityBId);
     if (!cityA || !cityB) return null;
@@ -161,6 +174,7 @@ export class GameState {
       path: pathResult.path,
       cost: pathResult.totalCost,
       capacity: computeLinkCapacity(pathResult.totalCost),
+      free: cityA.linkIds.length === 0,
     };
   }
 }

@@ -292,10 +292,11 @@ function renderFeatureOverlay(): void {
     // Render trade links
     for (const link of gameState.links.values()) {
       const cityA = gameState.cities.find((c) => c.id === link.cityA);
-      if (!cityA) continue;
+      const cityB = gameState.cities.find((c) => c.id === link.cityB);
+      if (!cityA || !cityB) continue;
 
-      // Draw path
-      overlayCtx.strokeStyle = `rgba(${cityA.color[0] * 255}, ${cityA.color[1] * 255}, ${cityA.color[2] * 255}, 0.6)`;
+      // Draw path in black
+      overlayCtx.strokeStyle = "rgba(0, 0, 0, 0.7)";
       overlayCtx.lineWidth = 2;
       overlayCtx.beginPath();
       for (let i = 0; i < link.path.length; i++) {
@@ -306,17 +307,36 @@ function renderFeatureOverlay(): void {
       }
       overlayCtx.stroke();
 
-      // Capacity label at midpoint
+      // Per-city send amounts in each city's color
       if (link.path.length > 1) {
-        const mid = link.path[Math.floor(link.path.length / 2)]!;
-        const mpx = mid.x * cellWidth + cellWidth / 2;
-        const mpy = mid.y * cellHeight + cellHeight / 2;
-        const used = link.allocations.reduce((sum, a) => sum + a.amount, 0);
-        overlayCtx.fillStyle = "white";
-        overlayCtx.font = `bold ${Math.max(8, Math.floor(cellWidth))}px sans-serif`;
-        overlayCtx.textAlign = "center";
+        const fontSize = Math.max(8, Math.floor(cellWidth));
+        overlayCtx.font = `bold ${fontSize}px sans-serif`;
         overlayCtx.textBaseline = "middle";
-        overlayCtx.fillText(`${used}/${link.capacity}`, mpx, mpy);
+
+        const aSend = link.allocations
+          .filter((a) => a.direction === "a-to-b")
+          .reduce((sum, a) => sum + a.amount, 0);
+        const bSend = link.allocations
+          .filter((a) => a.direction === "b-to-a")
+          .reduce((sum, a) => sum + a.amount, 0);
+
+        // Label near city A end (quarter of the way along the path)
+        const aIdx = Math.floor(link.path.length * 0.25);
+        const aPos = link.path[aIdx]!;
+        const apx = aPos.x * cellWidth + cellWidth / 2;
+        const apy = aPos.y * cellHeight + cellHeight / 2;
+        overlayCtx.fillStyle = `rgb(${cityA.color[0] * 255}, ${cityA.color[1] * 255}, ${cityA.color[2] * 255})`;
+        overlayCtx.textAlign = "center";
+        overlayCtx.fillText(`${aSend}`, apx, apy);
+
+        // Label near city B end (three-quarters of the way along the path)
+        const bIdx = Math.floor(link.path.length * 0.75);
+        const bPos = link.path[bIdx]!;
+        const bpx = bPos.x * cellWidth + cellWidth / 2;
+        const bpy = bPos.y * cellHeight + cellHeight / 2;
+        overlayCtx.fillStyle = `rgb(${cityB.color[0] * 255}, ${cityB.color[1] * 255}, ${cityB.color[2] * 255})`;
+        overlayCtx.textAlign = "center";
+        overlayCtx.fillText(`${bSend}`, bpx, bpy);
       }
     }
   }
@@ -508,7 +528,6 @@ function showCityDetail(cityId: string): void {
 
     const sendDir: "a-to-b" | "b-to-a" = link.cityA === cityId ? "a-to-b" : "b-to-a";
     const recvDir: "a-to-b" | "b-to-a" = link.cityA === cityId ? "b-to-a" : "a-to-b";
-    const used = link.allocations.reduce((sum, a) => sum + a.amount, 0);
     const sendAlloc = link.allocations.find((a) => a.direction === sendDir);
     const recvAlloc = link.allocations.find((a) => a.direction === recvDir);
 
@@ -534,7 +553,7 @@ function showCityDetail(cityId: string): void {
 
     linksHtml += `
       <div style="margin-bottom: 8px; padding: 6px; background: #222; border-radius: 3px">
-        <div>\u2194 ${otherCity.name} (${used}/${link.capacity})</div>
+        <div>\u2194 ${otherCity.name} (cap: ${link.capacity}/dir)</div>
         ${makeRow("\u2192", sendDir, sendAlloc)}
         ${makeRow("\u2190", recvDir, recvAlloc)}
       </div>
@@ -655,7 +674,9 @@ canvas.addEventListener("click", (event: MouseEvent) => {
     buildLinkTargetId = clickedCity.id;
     const preview = gameState.previewLink(buildLinkSourceId, buildLinkTargetId);
     if (preview) {
-      linkBuildPreview.textContent = `Cost: ${preview.cost.toFixed(1)} | Capacity: ${preview.capacity}/turn`;
+      linkBuildPreview.textContent = preview.free
+        ? `Free! | Capacity: ${preview.capacity}/turn`
+        : `Cost: ${preview.cost.toFixed(1)} | Capacity: ${preview.capacity}/turn`;
       linkBuildConfirm.style.display = "block";
     } else {
       linkBuildPreview.textContent = "No path found!";

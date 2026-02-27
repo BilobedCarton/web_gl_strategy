@@ -126,5 +126,5 @@ export function findPath(
 
 // Compute link capacity from path cost
 export function computeLinkCapacity(pathCost: number): number {
-  return Math.max(3, Math.floor(20 / pathCost));
+  return Math.max(5, Math.floor(20 / pathCost));
 }
