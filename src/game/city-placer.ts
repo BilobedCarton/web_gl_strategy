@@ -174,5 +174,95 @@ export function placeCities(
     placed.push({ x: candidate.x, y: candidate.y });
   }
 
+  // Resolve overlapping territories: assign contested tiles to nearest city
+  resolveTerritoryOverlaps(cities);
+
+  // Remove enclaves: only keep tiles connected to the city center
+  for (const city of cities) {
+    city.territoryTiles = removeEnclaves(city);
+  }
+
+  // Recompute production after territory changes
+  for (const city of cities) {
+    city.production = computeProduction(city.territoryTiles, terrainMap);
+  }
+
   return cities;
+}
+
+// Assign overlapping tiles to the nearest city by Euclidean distance
+function resolveTerritoryOverlaps(cities: City[]): void {
+  // Build map of tile -> list of cities claiming it
+  const tileClaims = new Map<string, City[]>();
+  for (const city of cities) {
+    for (const tile of city.territoryTiles) {
+      const claims = tileClaims.get(tile);
+      if (claims) {
+        claims.push(city);
+      } else {
+        tileClaims.set(tile, [city]);
+      }
+    }
+  }
+
+  // For contested tiles, keep only the nearest city's claim
+  for (const [tile, claims] of tileClaims) {
+    if (claims.length <= 1) continue;
+
+    const parts = tile.split(",");
+    const tx = parseInt(parts[0]!, 10);
+    const ty = parseInt(parts[1]!, 10);
+
+    // Find nearest city
+    let nearest = claims[0]!;
+    let nearestDist = Infinity;
+    for (const city of claims) {
+      const dist = (city.position.x - tx) ** 2 + (city.position.y - ty) ** 2;
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearest = city;
+      }
+    }
+
+    // Remove tile from all other cities
+    for (const city of claims) {
+      if (city !== nearest) {
+        city.territoryTiles.delete(tile);
+      }
+    }
+  }
+}
+
+// Flood-fill from city center to remove disconnected territory patches (enclaves)
+function removeEnclaves(city: City): Set<string> {
+  const startKey = `${city.position.x},${city.position.y}`;
+  if (!city.territoryTiles.has(startKey)) return city.territoryTiles;
+
+  const connected = new Set<string>();
+  const queue = [startKey];
+  connected.add(startKey);
+
+  const directions = [
+    [0, -1],
+    [1, 0],
+    [0, 1],
+    [-1, 0],
+  ];
+
+  while (queue.length > 0) {
+    const current = queue.pop()!;
+    const parts = current.split(",");
+    const cx = parseInt(parts[0]!, 10);
+    const cy = parseInt(parts[1]!, 10);
+
+    for (const [dx, dy] of directions) {
+      const neighborKey = `${cx + dx!},${cy + dy!}`;
+      if (city.territoryTiles.has(neighborKey) && !connected.has(neighborKey)) {
+        connected.add(neighborKey);
+        queue.push(neighborKey);
+      }
+    }
+  }
+
+  return connected;
 }
