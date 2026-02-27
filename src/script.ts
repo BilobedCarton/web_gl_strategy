@@ -1,7 +1,7 @@
 import { createGLContext } from "./core/gl-context";
 import { Camera } from "./core/camera";
 import { Grid } from "./game/grid";
-import { createCellFromTerrainData, createRandomTerrainCell } from "./game/cell";
+import { createCellFromTerrainData } from "./game/cell";
 import { GridRenderer } from "./rendering/grid-renderer";
 import { ProceduralTerrainGenerator, MapType, type TerrainData } from "./game/procedural-generator";
 import { getTerrainColor, TerrainFeature } from "./game/terrain";
