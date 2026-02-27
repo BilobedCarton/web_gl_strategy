@@ -75,13 +75,8 @@ function computeTerritory(
       const x = cx + dx;
       const y = cy + dy;
       if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight) continue;
-      const data = terrainMap.get(`${x},${y}`);
-      if (!data) continue;
-      const isWater =
-        data.terrain === TerrainType.DeepWaters || data.terrain === TerrainType.Shallows;
-      if (!isWater) {
-        territory.add(`${x},${y}`);
-      }
+      if (!terrainMap.has(`${x},${y}`)) continue;
+      territory.add(`${x},${y}`);
     }
   }
   return territory;
