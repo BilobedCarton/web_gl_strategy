@@ -5,6 +5,9 @@ import { createCellFromTerrainData, createRandomTerrainCell } from "./game/cell"
 import { GridRenderer } from "./rendering/grid-renderer";
 import { ProceduralTerrainGenerator, MapType, type TerrainData } from "./game/procedural-generator";
 import { getTerrainColor, TerrainFeature } from "./game/terrain";
+import { placeCities } from "./game/city-placer";
+import { GameState } from "./game/game-state";
+import { ResourceType, ResourceNames } from "./game/resources";
 
 // Initialize WebGL context
 const glContext = createGLContext("canvaselement", {
@@ -25,8 +28,8 @@ const { width, height } = glContext.getCanvasSize();
 const camera = new Camera(width, height);
 
 // Grid configuration
-const gridWidth = 50;
-const gridHeight = 50;
+const gridWidth = 75;
+const gridHeight = 75;
 const grid = new Grid(gridWidth, gridHeight, [0.5, 0.5, 0.5, 1.0]);
 
 // Create grid renderer
@@ -61,6 +64,9 @@ const regenerateBtn = document.getElementById("regenerate") as HTMLButtonElement
 
 // Current terrain generator
 let terrainGenerator: ProceduralTerrainGenerator;
+
+// Game state
+let gameState: GameState;
 
 // View mode type
 type ViewMode = "terrain" | "elevation" | "moisture" | "temperature";
@@ -149,6 +155,30 @@ function generateMap(preserveSeed = false) {
     }
   }
 
+  // Initialize game state
+  gameState = new GameState();
+  gameState.terrainMap = terrainMap;
+  gameState.gridWidth = gridWidth;
+  gameState.gridHeight = gridHeight;
+  gameState.cities = placeCities(terrainMap, gridWidth, gridHeight, terrainGenerator.getSeed());
+
+  // Run initial production
+  gameState.runProduction();
+
+  // Log city info
+  for (const city of gameState.cities) {
+    console.log(`\n🏰 ${city.name} at (${city.position.x}, ${city.position.y})`);
+    console.log(`   Territory: ${city.territoryTiles.size} tiles`);
+    const prodEntries = [...city.production.entries()]
+      .filter(([, amount]) => amount > 0)
+      .map(([resource, amount]) => `${ResourceNames[resource]}: ${amount}`);
+    console.log(`   Production: ${prodEntries.join(", ") || "none"}`);
+    const stockEntries = [...city.stockpile.entries()]
+      .filter(([, amount]) => amount > 0)
+      .map(([resource, amount]) => `${ResourceNames[resource]}: ${amount}`);
+    console.log(`   Stockpile: ${stockEntries.join(", ") || "none"}`);
+  }
+
   // Update renderer with current view mode
   updateGridView();
 }
@@ -170,6 +200,72 @@ function renderFeatureOverlay(): void {
         const py = y * cellHeight + cellHeight / 2;
         overlayCtx.fillText(emoji, px, py);
       }
+    }
+  }
+
+  // Render city markers and territory borders
+  if (gameState) {
+    for (const city of gameState.cities) {
+      // Territory border
+      overlayCtx.strokeStyle = `rgba(${city.color[0] * 255}, ${city.color[1] * 255}, ${city.color[2] * 255}, 0.8)`;
+      overlayCtx.lineWidth = 1.5;
+      for (const key of city.territoryTiles) {
+        const parts = key.split(",");
+        const tx = parseInt(parts[0]!, 10);
+        const ty = parseInt(parts[1]!, 10);
+        const px = tx * cellWidth;
+        const py = ty * cellHeight;
+
+        // Draw border only on edges adjacent to non-territory tiles
+        const directions = [
+          [0, -1],
+          [1, 0],
+          [0, 1],
+          [-1, 0],
+        ] as const;
+        for (const [dx, dy] of directions) {
+          const neighborKey = `${tx + dx},${ty + dy}`;
+          if (!city.territoryTiles.has(neighborKey)) {
+            overlayCtx.beginPath();
+            if (dx === 0 && dy === -1) {
+              overlayCtx.moveTo(px, py);
+              overlayCtx.lineTo(px + cellWidth, py);
+            }
+            if (dx === 1 && dy === 0) {
+              overlayCtx.moveTo(px + cellWidth, py);
+              overlayCtx.lineTo(px + cellWidth, py + cellHeight);
+            }
+            if (dx === 0 && dy === 1) {
+              overlayCtx.moveTo(px, py + cellHeight);
+              overlayCtx.lineTo(px + cellWidth, py + cellHeight);
+            }
+            if (dx === -1 && dy === 0) {
+              overlayCtx.moveTo(px, py);
+              overlayCtx.lineTo(px, py + cellHeight);
+            }
+            overlayCtx.stroke();
+          }
+        }
+      }
+
+      // City marker
+      const cx = city.position.x * cellWidth + cellWidth / 2;
+      const cy = city.position.y * cellHeight + cellHeight / 2;
+      overlayCtx.fillStyle = `rgba(${city.color[0] * 255}, ${city.color[1] * 255}, ${city.color[2] * 255}, 1.0)`;
+      overlayCtx.beginPath();
+      overlayCtx.arc(cx, cy, cellWidth * 1.5, 0, Math.PI * 2);
+      overlayCtx.fill();
+      overlayCtx.strokeStyle = "white";
+      overlayCtx.lineWidth = 1;
+      overlayCtx.stroke();
+
+      // City name
+      const nameFontSize = Math.max(8, Math.floor(cellWidth * 1.2));
+      overlayCtx.font = `bold ${nameFontSize}px sans-serif`;
+      overlayCtx.fillStyle = "white";
+      overlayCtx.textAlign = "center";
+      overlayCtx.textBaseline = "top";
+      overlayCtx.fillText(city.name, cx, cy + cellWidth * 2);
     }
   }
 }
