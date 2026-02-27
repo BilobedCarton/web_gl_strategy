@@ -190,11 +190,77 @@
 
       <button id="regenerate">🔄 Generate Map</button>
 
-      <div class="info">
-        <div class="info-title">Controls</div>
-        • Click cells to see terrain info<br />
-        • Adjust parameters above<br />
-        • Click Generate to create new map
+      <hr style="border-color: #444; margin: 20px 0" />
+
+      <h2>🏰 Game</h2>
+
+      <div class="control-group" style="display: flex; gap: 8px; align-items: center">
+        <span style="font-size: 14px">Turn: <strong id="turnCounter">1</strong></span>
+        <button id="endTurn" style="flex: 1; padding: 8px">End Turn</button>
+      </div>
+
+      <div id="cityList" style="margin-top: 12px"></div>
+
+      <div
+        id="cityDetail"
+        style="
+          display: none;
+          margin-top: 12px;
+          padding: 12px;
+          background: #1a1a1a;
+          border-radius: 4px;
+        "
+      >
+        <div style="display: flex; justify-content: space-between; align-items: center">
+          <strong id="cityDetailName" style="color: #4a9eff"></strong>
+          <span style="font-size: 11px; color: #888" id="cityDetailScore"></span>
+        </div>
+        <div style="margin-top: 8px; font-size: 12px">
+          <div style="color: #b0b0b0; margin-bottom: 4px">Production per turn:</div>
+          <div id="cityDetailProduction"></div>
+        </div>
+        <div style="margin-top: 8px; font-size: 12px">
+          <div style="color: #b0b0b0; margin-bottom: 4px">Stockpile:</div>
+          <div id="cityDetailStockpile"></div>
+        </div>
+        <div style="margin-top: 8px; font-size: 12px">
+          <div style="color: #b0b0b0; margin-bottom: 4px">Trade Links:</div>
+          <div id="cityDetailLinks"></div>
+        </div>
+        <button id="buildLinkBtn" style="margin-top: 8px; padding: 6px; font-size: 12px">
+          Build Trade Link
+        </button>
+      </div>
+
+      <div
+        id="linkBuildMode"
+        style="
+          display: none;
+          margin-top: 12px;
+          padding: 12px;
+          background: #332200;
+          border: 1px solid #664400;
+          border-radius: 4px;
+          font-size: 12px;
+        "
+      >
+        <strong style="color: #ffaa00">Building Trade Link</strong>
+        <div id="linkBuildStatus" style="margin-top: 4px">Click a destination city...</div>
+        <div id="linkBuildPreview" style="margin-top: 4px"></div>
+        <div style="margin-top: 8px; display: flex; gap: 4px">
+          <button
+            id="linkBuildConfirm"
+            style="flex: 1; padding: 6px; font-size: 12px; display: none"
+          >
+            Confirm
+          </button>
+          <button
+            id="linkBuildCancel"
+            style="flex: 1; padding: 6px; font-size: 12px; background: #666"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
 

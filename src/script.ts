@@ -62,6 +62,27 @@ const moistureLevelValue = document.getElementById("moistureLevelValue") as HTML
 const viewModeSelect = document.getElementById("viewMode") as HTMLSelectElement;
 const regenerateBtn = document.getElementById("regenerate") as HTMLButtonElement;
 
+// Game UI elements
+const turnCounter = document.getElementById("turnCounter") as HTMLSpanElement;
+const endTurnBtn = document.getElementById("endTurn") as HTMLButtonElement;
+const cityListDiv = document.getElementById("cityList") as HTMLDivElement;
+const cityDetailDiv = document.getElementById("cityDetail") as HTMLDivElement;
+const cityDetailName = document.getElementById("cityDetailName") as HTMLElement;
+const cityDetailScore = document.getElementById("cityDetailScore") as HTMLSpanElement;
+const cityDetailProduction = document.getElementById("cityDetailProduction") as HTMLDivElement;
+const cityDetailStockpile = document.getElementById("cityDetailStockpile") as HTMLDivElement;
+const cityDetailLinks = document.getElementById("cityDetailLinks") as HTMLDivElement;
+const buildLinkBtn = document.getElementById("buildLinkBtn") as HTMLButtonElement;
+const linkBuildModeDiv = document.getElementById("linkBuildMode") as HTMLDivElement;
+const linkBuildStatus = document.getElementById("linkBuildStatus") as HTMLDivElement;
+const linkBuildPreview = document.getElementById("linkBuildPreview") as HTMLDivElement;
+const linkBuildConfirm = document.getElementById("linkBuildConfirm") as HTMLButtonElement;
+const linkBuildCancel = document.getElementById("linkBuildCancel") as HTMLButtonElement;
+
+let selectedCityId: string | null = null;
+let buildLinkSourceId: string | null = null;
+let buildLinkTargetId: string | null = null;
+
 // Current terrain generator
 let terrainGenerator: ProceduralTerrainGenerator;
 
@@ -267,6 +288,37 @@ function renderFeatureOverlay(): void {
       overlayCtx.textBaseline = "top";
       overlayCtx.fillText(city.name, cx, cy + cellWidth * 2);
     }
+
+    // Render trade links
+    for (const link of gameState.links.values()) {
+      const cityA = gameState.cities.find((c) => c.id === link.cityA);
+      if (!cityA) continue;
+
+      // Draw path
+      overlayCtx.strokeStyle = `rgba(${cityA.color[0] * 255}, ${cityA.color[1] * 255}, ${cityA.color[2] * 255}, 0.6)`;
+      overlayCtx.lineWidth = 2;
+      overlayCtx.beginPath();
+      for (let i = 0; i < link.path.length; i++) {
+        const px = link.path[i]!.x * cellWidth + cellWidth / 2;
+        const py = link.path[i]!.y * cellHeight + cellHeight / 2;
+        if (i === 0) overlayCtx.moveTo(px, py);
+        else overlayCtx.lineTo(px, py);
+      }
+      overlayCtx.stroke();
+
+      // Capacity label at midpoint
+      if (link.path.length > 1) {
+        const mid = link.path[Math.floor(link.path.length / 2)]!;
+        const mpx = mid.x * cellWidth + cellWidth / 2;
+        const mpy = mid.y * cellHeight + cellHeight / 2;
+        const used = link.allocations.reduce((sum, a) => sum + a.amount, 0);
+        overlayCtx.fillStyle = "white";
+        overlayCtx.font = `bold ${Math.max(8, Math.floor(cellWidth))}px sans-serif`;
+        overlayCtx.textAlign = "center";
+        overlayCtx.textBaseline = "middle";
+        overlayCtx.fillText(`${used}/${link.capacity}`, mpx, mpy);
+      }
+    }
   }
 }
 
@@ -380,6 +432,169 @@ viewModeSelect.addEventListener("change", () => {
 // Handle regenerate button
 regenerateBtn.addEventListener("click", () => {
   generateMap();
+  selectedCityId = null;
+  exitBuildLinkMode();
+  cityDetailDiv.style.display = "none";
+  turnCounter.textContent = "1";
+  updateCityList();
+});
+
+// --- Game UI Functions ---
+
+function updateCityList(): void {
+  if (!gameState) return;
+  let html = "";
+  for (const city of gameState.cities) {
+    const score = gameState.getCityScore(city.id);
+    const isSelected = city.id === selectedCityId;
+    html += `<button class="city-list-btn" data-city-id="${city.id}" style="
+      width: 100%; padding: 6px 8px; margin-bottom: 4px; font-size: 12px; text-align: left;
+      background: ${isSelected ? "#333" : "#222"}; border: 1px solid ${isSelected ? `rgb(${city.color[0] * 255}, ${city.color[1] * 255}, ${city.color[2] * 255})` : "#444"};
+      color: #e0e0e0; border-radius: 3px; cursor: pointer;
+    ">
+      <span style="color: rgb(${city.color[0] * 255}, ${city.color[1] * 255}, ${city.color[2] * 255}); font-weight: bold;">${city.name}</span>
+      <span style="float: right; color: #888;">Score: ${score}/6</span>
+    </button>`;
+  }
+  cityListDiv.innerHTML = html;
+
+  // Attach click listeners
+  cityListDiv.querySelectorAll(".city-list-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const cityId = (btn as HTMLElement).dataset.cityId!;
+      selectedCityId = cityId;
+      showCityDetail(cityId);
+      updateCityList();
+    });
+  });
+}
+
+function showCityDetail(cityId: string): void {
+  const city = gameState.cities.find((c) => c.id === cityId);
+  if (!city) return;
+
+  cityDetailDiv.style.display = "block";
+  cityDetailName.textContent = city.name;
+  cityDetailName.style.color = `rgb(${city.color[0] * 255}, ${city.color[1] * 255}, ${city.color[2] * 255})`;
+  cityDetailScore.textContent = `Score: ${gameState.getCityScore(cityId)}/6`;
+
+  // Production
+  const prodHtml =
+    [...city.production.entries()]
+      .filter(([, amount]) => amount > 0)
+      .map(([resource, amount]) => `${ResourceNames[resource]}: ${amount}`)
+      .join("<br>") || "None";
+  cityDetailProduction.innerHTML = prodHtml;
+
+  // Stockpile
+  const stockHtml =
+    Object.values(ResourceType)
+      .map((r) => {
+        const amount = city.stockpile.get(r) ?? 0;
+        return amount > 0 ? `${ResourceNames[r]}: ${amount}` : null;
+      })
+      .filter(Boolean)
+      .join("<br>") || "Empty";
+  cityDetailStockpile.innerHTML = stockHtml;
+
+  // Links with allocation controls
+  let linksHtml = "";
+  for (const linkId of city.linkIds) {
+    const link = gameState.links.get(linkId);
+    if (!link) continue;
+    const otherCityId = link.cityA === cityId ? link.cityB : link.cityA;
+    const otherCity = gameState.cities.find((c) => c.id === otherCityId);
+    if (!otherCity) continue;
+
+    const direction = link.cityA === cityId ? "a-to-b" : "b-to-a";
+    const used = link.allocations.reduce((sum, a) => sum + a.amount, 0);
+
+    linksHtml += `
+      <div style="margin-bottom: 8px; padding: 6px; background: #222; border-radius: 3px">
+        <div>\u2192 ${otherCity.name} (${used}/${link.capacity})</div>
+        <div style="margin-top: 4px; display: flex; gap: 4px; align-items: center">
+          <select data-link-id="${linkId}" data-direction="${direction}" class="trade-resource" style="flex: 1; padding: 2px; font-size: 11px">
+            ${Object.values(ResourceType)
+              .map((r) => `<option value="${r}">${ResourceNames[r]}</option>`)
+              .join("")}
+          </select>
+          <input type="number" class="trade-amount" data-link-id="${linkId}" min="0" max="${link.capacity}" value="0" style="width: 40px; padding: 2px; font-size: 11px">
+          <button class="trade-apply" data-link-id="${linkId}" data-direction="${direction}" style="padding: 2px 6px; font-size: 11px">Set</button>
+        </div>
+      </div>
+    `;
+  }
+  cityDetailLinks.innerHTML = linksHtml || "No links";
+
+  // Attach event listeners to "Set" buttons
+  cityDetailLinks.querySelectorAll(".trade-apply").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const lId = (btn as HTMLElement).dataset.linkId!;
+      const dir = (btn as HTMLElement).dataset.direction! as "a-to-b" | "b-to-a";
+      const container = btn.parentElement!;
+      const resourceSelect = container.querySelector(".trade-resource") as HTMLSelectElement;
+      const amountInput = container.querySelector(".trade-amount") as HTMLInputElement;
+
+      const resource = resourceSelect.value as ResourceType;
+      const amount = parseInt(amountInput.value) || 0;
+
+      gameState.setAllocation(lId, [{ resource, amount, direction: dir }]);
+      showCityDetail(cityId); // refresh
+      renderFeatureOverlay(); // update link labels
+    });
+  });
+
+  // Show/hide build link button based on link count
+  buildLinkBtn.style.display = city.linkIds.length < 3 ? "block" : "none";
+}
+
+function enterBuildLinkMode(sourceCityId: string): void {
+  buildLinkSourceId = sourceCityId;
+  buildLinkTargetId = null;
+  linkBuildModeDiv.style.display = "block";
+  linkBuildStatus.textContent = "Click a destination city on the map...";
+  linkBuildPreview.textContent = "";
+  linkBuildConfirm.style.display = "none";
+}
+
+function exitBuildLinkMode(): void {
+  buildLinkSourceId = null;
+  buildLinkTargetId = null;
+  linkBuildModeDiv.style.display = "none";
+}
+
+// Build Link button
+buildLinkBtn.addEventListener("click", () => {
+  if (selectedCityId) enterBuildLinkMode(selectedCityId);
+});
+
+// Build Link confirm
+linkBuildConfirm.addEventListener("click", () => {
+  if (buildLinkSourceId && buildLinkTargetId) {
+    const link = gameState.buildLink(buildLinkSourceId, buildLinkTargetId);
+    if (link) {
+      exitBuildLinkMode();
+      if (selectedCityId) showCityDetail(selectedCityId);
+      updateCityList();
+      renderFeatureOverlay();
+    } else {
+      linkBuildStatus.textContent = "Build failed! Need 10 Timber + 5 Iron Ore.";
+    }
+  }
+});
+
+// Build Link cancel
+linkBuildCancel.addEventListener("click", () => {
+  exitBuildLinkMode();
+});
+
+// End Turn
+endTurnBtn.addEventListener("click", () => {
+  gameState.endTurn();
+  turnCounter.textContent = String(gameState.turn + 1);
+  updateCityList();
+  if (selectedCityId) showCityDetail(selectedCityId);
+  renderFeatureOverlay();
 });
 
 // Game loop
@@ -397,41 +612,53 @@ function render(): void {
 // Start the render loop
 render();
 
-// Add mouse click handler for interactive demo
+// Canvas click handler — city selection and build link mode
 canvas.addEventListener("click", (event: MouseEvent) => {
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
 
-  // Convert screen coordinates to grid coordinates
   const gridX = Math.floor(x / cellWidth);
   const gridY = Math.floor(y / cellHeight);
 
-  // Check if click is within grid bounds
-  if (grid.isInBounds(gridX, gridY)) {
-    // Get current cell to show detailed info
+  if (!grid.isInBounds(gridX, gridY)) return;
+
+  // Check if a city is at this position (within 2 tile radius for easier clicking)
+  const clickedCity = gameState?.cities.find((c) => {
+    const dx = c.position.x - gridX;
+    const dy = c.position.y - gridY;
+    return dx * dx + dy * dy <= 4;
+  });
+
+  if (buildLinkSourceId && clickedCity && clickedCity.id !== buildLinkSourceId) {
+    // In build link mode — set target and preview
+    buildLinkTargetId = clickedCity.id;
+    const preview = gameState.previewLink(buildLinkSourceId, buildLinkTargetId);
+    if (preview) {
+      linkBuildPreview.textContent = `Cost: ${preview.cost.toFixed(1)} | Capacity: ${preview.capacity}/turn`;
+      linkBuildConfirm.style.display = "block";
+    } else {
+      linkBuildPreview.textContent = "No path found!";
+      linkBuildConfirm.style.display = "none";
+    }
+    return;
+  }
+
+  if (clickedCity) {
+    selectedCityId = clickedCity.id;
+    showCityDetail(clickedCity.id);
+    updateCityList();
+  } else {
+    // Existing terrain info logging
     const currentCell = grid.getCell(gridX, gridY);
     if (currentCell) {
-      console.log(`\n=== Cell (${gridX}, ${gridY}) ===`);
-      console.log(`Terrain: ${currentCell.terrain}`);
-      console.log(`Elevation: ${currentCell.elevation?.toFixed(3)} (${currentCell.elevationType})`);
-      console.log(`Temperature: ${currentCell.temperature?.toFixed(3)}`);
-      console.log(`Moisture: ${currentCell.moisture?.toFixed(3)}`);
-      console.log(`Feature: ${currentCell.feature ?? "none"}`);
+      console.log(
+        `Cell (${gridX}, ${gridY}): ${currentCell.terrain}, elev=${currentCell.elevation?.toFixed(3)}`,
+      );
     }
   }
 });
 
 // Generate initial map
 generateMap();
-
-console.log("\n🗺️  Grid-based strategy game initialized!");
-console.log("📊 Procedural terrain generation complete");
-console.log("   - Perlin noise elevation with configurable sea level");
-console.log("   - Temperature based on latitude");
-console.log("   - Moisture/watershed calculation");
-console.log("   - 5 map types (Island, Inland, Peninsula, Archipelago, Coastal)");
-console.log("   - 7 terrain types (DeepWaters, Shallows, Coast, Plains, Wetlands, Tundra, Desert)");
-console.log("   - 3 land elevation types (Flat, Hills, Mountain)");
-console.log("\n💡 Click any cell to see detailed terrain info!");
-console.log("🎮 Use the controls panel to customize map generation!\n");
+updateCityList();
