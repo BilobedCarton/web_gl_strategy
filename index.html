@@ -132,63 +132,70 @@
   </head>
   <body>
     <div id="controls">
-      <h2>🗺️ Terrain Generator</h2>
+      <details>
+        <summary style="cursor: pointer; list-style: none">
+          <h2 style="display: inline; border-bottom: none; padding-bottom: 0">
+            🗺️ Terrain Generator
+          </h2>
+          <span style="float: right; color: #888; font-size: 12px; line-height: 28px">▼</span>
+        </summary>
 
-      <div class="control-group">
-        <label for="mapType">Map Type</label>
-        <select id="mapType">
-          <option value="random">Random</option>
-          <option value="island">Island</option>
-          <option value="inland">Inland</option>
-          <option value="peninsula">Peninsula</option>
-          <option value="archipelago">Archipelago</option>
-          <option value="coastal">Coastal</option>
-        </select>
-      </div>
+        <div class="control-group" style="margin-top: 12px">
+          <label for="mapType">Map Type</label>
+          <select id="mapType">
+            <option value="random">Random</option>
+            <option value="island">Island</option>
+            <option value="inland">Inland</option>
+            <option value="peninsula">Peninsula</option>
+            <option value="archipelago">Archipelago</option>
+            <option value="coastal">Coastal</option>
+          </select>
+        </div>
 
-      <div class="control-group">
-        <label for="seed">
-          Seed
-          <span class="value-display" id="currentSeed">—</span>
-        </label>
-        <input type="number" id="seed" placeholder="Random" min="0" max="9999" />
-      </div>
+        <div class="control-group">
+          <label for="seed">
+            Seed
+            <span class="value-display" id="currentSeed">—</span>
+          </label>
+          <input type="number" id="seed" placeholder="Random" min="0" max="9999" />
+        </div>
 
-      <div class="control-group">
-        <label>
-          Latitude
-          <span class="value-display" id="latitudeValue">Random</span>
-        </label>
-        <input type="range" id="latitude" min="0" max="100" step="1" />
-      </div>
+        <div class="control-group">
+          <label>
+            Latitude
+            <span class="value-display" id="latitudeValue">Random</span>
+          </label>
+          <input type="range" id="latitude" min="0" max="100" step="1" />
+        </div>
 
-      <div class="control-group">
-        <label>
-          Sea Level
-          <span class="value-display" id="seaLevelValue">0.35</span>
-        </label>
-        <input type="range" id="seaLevel" min="0" max="100" step="1" value="35" />
-      </div>
+        <div class="control-group">
+          <label>
+            Sea Level
+            <span class="value-display" id="seaLevelValue">0.35</span>
+          </label>
+          <input type="range" id="seaLevel" min="0" max="100" step="1" value="35" />
+        </div>
 
-      <div class="control-group">
-        <label>
-          Moisture Level
-          <span class="value-display" id="moistureLevelValue">1.00</span>
-        </label>
-        <input type="range" id="moistureLevel" min="50" max="150" step="5" value="100" />
-      </div>
+        <div class="control-group">
+          <label>
+            Moisture Level
+            <span class="value-display" id="moistureLevelValue">1.00</span>
+          </label>
+          <input type="range" id="moistureLevel" min="50" max="150" step="5" value="100" />
+        </div>
 
-      <div class="control-group">
-        <label for="viewMode">View Mode</label>
-        <select id="viewMode">
-          <option value="terrain">Terrain</option>
-          <option value="elevation">Elevation</option>
-          <option value="moisture">Moisture</option>
-          <option value="temperature">Temperature</option>
-        </select>
-      </div>
+        <div class="control-group">
+          <label for="viewMode">View Mode</label>
+          <select id="viewMode">
+            <option value="terrain">Terrain</option>
+            <option value="elevation">Elevation</option>
+            <option value="moisture">Moisture</option>
+            <option value="temperature">Temperature</option>
+          </select>
+        </div>
 
-      <button id="regenerate">🔄 Generate Map</button>
+        <button id="regenerate">🔄 Generate Map</button>
+      </details>
 
       <hr style="border-color: #444; margin: 20px 0" />
 
