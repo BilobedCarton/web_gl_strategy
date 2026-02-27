@@ -519,7 +519,7 @@ function showCityDetail(cityId: string): void {
     ) => `
       <div style="margin-top: 4px; display: flex; gap: 4px; align-items: center">
         <span style="font-size: 10px; color: #888; width: 24px">${label}</span>
-        <select data-link-id="${linkId}" data-direction="${dir}" class="trade-resource" style="flex: 1; padding: 2px; font-size: 11px">
+        <select data-link-id="${linkId}" data-direction="${dir}" class="trade-resource" style="flex: 1; min-width: 0; padding: 2px; font-size: 11px">
           ${Object.values(ResourceType)
             .map(
               (r) =>
@@ -527,8 +527,8 @@ function showCityDetail(cityId: string): void {
             )
             .join("")}
         </select>
-        <input type="number" class="trade-amount" data-link-id="${linkId}" data-direction="${dir}" min="0" max="${link.capacity}" value="${alloc?.amount ?? 0}" style="width: 40px; padding: 2px; font-size: 11px">
-        <button class="trade-apply" data-link-id="${linkId}" data-direction="${dir}" style="padding: 2px 6px; font-size: 11px">Set</button>
+        <input type="number" class="trade-amount" data-link-id="${linkId}" data-direction="${dir}" min="0" max="${link.capacity}" value="${alloc?.amount ?? 0}" style="width: 32px; padding: 2px; font-size: 11px; flex-shrink: 0">
+        <button class="trade-apply" data-link-id="${linkId}" data-direction="${dir}" style="padding: 1px 4px; font-size: 9px; line-height: 1; flex-shrink: 0; width: auto">Set</button>
       </div>
     `;
 
