@@ -8,6 +8,7 @@ import { getTerrainColor, TerrainFeature } from "./game/terrain";
 import { placeCities } from "./game/city-placer";
 import { GameState } from "./game/game-state";
 import { ResourceType, ResourceNames } from "./game/resources";
+import { RECIPES, canAffordRecipe } from "./game/recipes";
 
 // Initialize WebGL context
 const glContext = createGLContext("canvaselement", {
@@ -78,6 +79,8 @@ const linkBuildStatus = document.getElementById("linkBuildStatus") as HTMLDivEle
 const linkBuildPreview = document.getElementById("linkBuildPreview") as HTMLDivElement;
 const linkBuildConfirm = document.getElementById("linkBuildConfirm") as HTMLButtonElement;
 const linkBuildCancel = document.getElementById("linkBuildCancel") as HTMLButtonElement;
+const turnLogDiv = document.getElementById("turnLog") as HTMLDivElement;
+const cityDetailCrafting = document.getElementById("cityDetailCrafting") as HTMLDivElement;
 
 let selectedCityId: string | null = null;
 let buildLinkSourceId: string | null = null;
@@ -473,7 +476,7 @@ function updateCityList(): void {
       color: #e0e0e0; border-radius: 3px; cursor: pointer;
     ">
       <span style="color: rgb(${city.color[0] * 255}, ${city.color[1] * 255}, ${city.color[2] * 255}); font-weight: bold;">${city.name}</span>
-      <span style="float: right; color: #888;">Score: ${score}/6</span>
+      <span style="float: right; color: #888;">Wealth: ${score}</span>
     </button>`;
   }
   cityListDiv.innerHTML = html;
@@ -496,7 +499,9 @@ function showCityDetail(cityId: string): void {
   cityDetailDiv.style.display = "block";
   cityDetailName.textContent = city.name;
   cityDetailName.style.color = `rgb(${city.color[0] * 255}, ${city.color[1] * 255}, ${city.color[2] * 255})`;
-  cityDetailScore.textContent = `Score: ${gameState.getCityScore(cityId)}/6`;
+  const foodStatusColors = { fed: "#4a4", underfed: "#aa4", starving: "#a44" };
+  const foodStatusLabels = { fed: "Fed", underfed: "Underfed", starving: "Starving" };
+  cityDetailScore.innerHTML = `<span style="color: ${foodStatusColors[city.foodStatus]}">${foodStatusLabels[city.foodStatus]}</span> | Wealth: ${gameState.getCityScore(cityId)}`;
 
   // Production
   const prodHtml =
@@ -516,6 +521,31 @@ function showCityDetail(cityId: string): void {
       .filter(Boolean)
       .join("<br>") || "Empty";
   cityDetailStockpile.innerHTML = stockHtml;
+
+  // Crafting queue
+  let craftHtml = `<select id="craftingSelect" style="width: 100%; padding: 4px; font-size: 11px; margin-bottom: 4px; background: #1a1a1a; color: #e0e0e0; border: 1px solid #444; border-radius: 3px;">
+    <option value="">None (idle)</option>`;
+  for (const recipe of RECIPES) {
+    const affordable = canAffordRecipe(city.stockpile, recipe);
+    const inputStr = [...recipe.inputs.entries()]
+      .map(([r, n]) => `${n} ${ResourceNames[r]}`)
+      .join(" + ");
+    const outputStr = [...recipe.outputs.entries()]
+      .map(([r, n]) => `${n} ${ResourceNames[r]}`)
+      .join(" + ");
+    const selected = city.craftingQueue === recipe.id ? " selected" : "";
+    craftHtml += `<option value="${recipe.id}"${selected}${!affordable ? ' style="color: #666"' : ""}>
+      ${recipe.name}: ${inputStr} \u2192 ${outputStr}${!affordable ? " (need more)" : ""}
+    </option>`;
+  }
+  craftHtml += "</select>";
+  cityDetailCrafting.innerHTML = craftHtml;
+
+  // Attach crafting change listener
+  const craftSelect = document.getElementById("craftingSelect") as HTMLSelectElement;
+  craftSelect.addEventListener("change", () => {
+    gameState.setCraftingQueue(cityId, craftSelect.value || null);
+  });
 
   // Links with bidirectional allocation controls
   let linksHtml = "";
@@ -631,6 +661,16 @@ linkBuildCancel.addEventListener("click", () => {
 endTurnBtn.addEventListener("click", () => {
   gameState.endTurn();
   turnCounter.textContent = String(gameState.turn + 1);
+
+  // Show turn log
+  let logHtml = "";
+  for (const city of gameState.cities) {
+    const foodColor = { fed: "#4a4", underfed: "#aa4", starving: "#a44" }[city.foodStatus];
+    logHtml += `<div style="margin-bottom: 4px"><strong style="color: rgb(${city.color[0] * 255}, ${city.color[1] * 255}, ${city.color[2] * 255})">${city.name}</strong>: <span style="color: ${foodColor}">${city.foodStatus}</span></div>`;
+  }
+  turnLogDiv.innerHTML = logHtml;
+  turnLogDiv.style.display = "block";
+
   updateCityList();
   if (selectedCityId) showCityDetail(selectedCityId);
   renderFeatureOverlay();

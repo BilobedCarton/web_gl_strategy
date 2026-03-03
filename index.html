@@ -206,6 +206,21 @@
         <button id="endTurn" style="flex: 1; padding: 8px">End Turn</button>
       </div>
 
+      <div
+        id="turnLog"
+        style="
+          margin-top: 8px;
+          padding: 8px;
+          background: #1a1a1a;
+          border-radius: 4px;
+          font-size: 11px;
+          color: #b0b0b0;
+          display: none;
+          max-height: 120px;
+          overflow-y: auto;
+        "
+      ></div>
+
       <div id="cityList" style="margin-top: 12px"></div>
 
       <div
@@ -229,6 +244,10 @@
         <div style="margin-top: 8px; font-size: 12px">
           <div style="color: #b0b0b0; margin-bottom: 4px">Stockpile:</div>
           <div id="cityDetailStockpile"></div>
+        </div>
+        <div style="margin-top: 8px; font-size: 12px">
+          <div style="color: #b0b0b0; margin-bottom: 4px">Crafting:</div>
+          <div id="cityDetailCrafting"></div>
         </div>
         <div style="margin-top: 8px; font-size: 12px">
           <div style="color: #b0b0b0; margin-bottom: 4px">Trade Links:</div>
