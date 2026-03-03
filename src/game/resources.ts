@@ -12,19 +12,20 @@ export enum ResourceType {
   Potions = "potions",
 }
 
-// Map resource types to their source terrain/feature
-export interface ResourceSource {
-  terrain?: TerrainType;
-  feature?: TerrainFeature;
-}
+// Feature → resource (checked first, takes priority over terrain)
+export const FeatureResource: Partial<Record<TerrainFeature, ResourceType>> = {
+  [TerrainFeature.Forest]: ResourceType.Timber,
+  [TerrainFeature.Jungle]: ResourceType.Timber,
+  [TerrainFeature.Marsh]: ResourceType.Herbs,
+  [TerrainFeature.Mountain]: ResourceType.IronOre,
+};
 
-export const ResourceSources: Partial<Record<ResourceType, ResourceSource>> = {
-  [ResourceType.Grain]: { terrain: TerrainType.Plains },
-  [ResourceType.Fish]: { terrain: TerrainType.Coast },
-  [ResourceType.Timber]: { feature: TerrainFeature.Forest },
-  [ResourceType.IronOre]: { feature: TerrainFeature.Mountain },
-  [ResourceType.Herbs]: { terrain: TerrainType.Wetlands },
-  [ResourceType.Furs]: { terrain: TerrainType.Tundra },
+// Terrain → resource (fallback when no feature resource)
+export const TerrainResource: Partial<Record<TerrainType, ResourceType>> = {
+  [TerrainType.Plains]: ResourceType.Grain,
+  [TerrainType.Coast]: ResourceType.Fish,
+  [TerrainType.Wetlands]: ResourceType.Herbs,
+  [TerrainType.Tundra]: ResourceType.Furs,
 };
 
 // Display names for UI
@@ -40,15 +41,14 @@ export const ResourceNames: Record<ResourceType, string> = {
   [ResourceType.Potions]: "Potions",
 };
 
-// Check if a terrain tile produces a given resource
-export function tileProducesResource(
+// Returns the single resource a tile produces, or undefined if none
+export function tileResource(
   terrain: TerrainType,
   feature: TerrainFeature | undefined,
-  resource: ResourceType,
-): boolean {
-  const source = ResourceSources[resource];
-  if (!source) return false;
-  if (source.terrain && terrain === source.terrain) return true;
-  if (source.feature && feature === source.feature) return true;
-  return false;
+): ResourceType | undefined {
+  if (feature) {
+    const featureRes = FeatureResource[feature];
+    if (featureRes) return featureRes;
+  }
+  return TerrainResource[terrain];
 }

@@ -1,7 +1,7 @@
 import type { TerrainData } from "./procedural-generator";
 import { TerrainType, TerrainFeature } from "./terrain";
 import { type City, CityColors, CityNamePool, createCity } from "./city";
-import { ResourceType, tileProducesResource } from "./resources";
+import { ResourceType, tileResource } from "./resources";
 
 const MIN_CITY_DISTANCE = 15;
 const TERRITORY_RADIUS = 8;
@@ -91,10 +91,9 @@ function computeProduction(
   for (const key of territory) {
     const data = terrainMap.get(key);
     if (!data) continue;
-    for (const resource of Object.values(ResourceType)) {
-      if (tileProducesResource(data.terrain, data.feature, resource)) {
-        production.set(resource, (production.get(resource) ?? 0) + 1);
-      }
+    const resource = tileResource(data.terrain, data.feature);
+    if (resource) {
+      production.set(resource, (production.get(resource) ?? 0) + 1);
     }
   }
   return production;
