@@ -8,7 +8,7 @@ import { getTerrainColor, TerrainFeature } from "./game/terrain";
 import { placeCities } from "./game/city-placer";
 import { GameState } from "./game/game-state";
 import { ResourceType, ResourceNames } from "./game/resources";
-import { RECIPES, canAffordRecipe } from "./game/recipes";
+import { RECIPES, canAffordRecipe, maxAffordableRuns } from "./game/recipes";
 
 // Initialize WebGL context
 const glContext = createGLContext("canvaselement", {
@@ -539,12 +539,32 @@ function showCityDetail(cityId: string): void {
     </option>`;
   }
   craftHtml += "</select>";
+
+  // Multiplier input — capped to max affordable runs for the selected recipe
+  const selectedRecipe = RECIPES.find((r) => r.id === city.craftingQueue);
+  const maxRuns = selectedRecipe ? maxAffordableRuns(city.stockpile, selectedRecipe) : 0;
+  const disabled = !selectedRecipe;
+  craftHtml += `<div style="display: flex; align-items: center; gap: 4px;">
+    <label for="craftingMultiplier" style="font-size: 11px; white-space: nowrap;">Runs:</label>
+    <input id="craftingMultiplier" type="number" min="1" max="${maxRuns || 1}" value="${city.craftingMultiplier}"
+      style="width: 50px; padding: 4px; font-size: 11px; background: #1a1a1a; color: #e0e0e0; border: 1px solid #444; border-radius: 3px;"
+      ${disabled ? "disabled" : ""}>
+    <span style="font-size: 10px; color: #888;">${disabled ? "" : `(max ${maxRuns})`}</span>
+  </div>`;
+
   cityDetailCrafting.innerHTML = craftHtml;
 
   // Attach crafting change listener
   const craftSelect = document.getElementById("craftingSelect") as HTMLSelectElement;
   craftSelect.addEventListener("change", () => {
     gameState.setCraftingQueue(cityId, craftSelect.value || null);
+    showCityDetail(cityId);
+  });
+
+  // Attach multiplier change listener
+  const multiplierInput = document.getElementById("craftingMultiplier") as HTMLInputElement;
+  multiplierInput.addEventListener("change", () => {
+    gameState.setCraftingMultiplier(cityId, parseInt(multiplierInput.value, 10) || 1);
   });
 
   // Links with bidirectional allocation controls

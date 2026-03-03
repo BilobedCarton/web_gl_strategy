@@ -90,7 +90,7 @@ export class GameState {
     }
   }
 
-  // Phase 3: Crafting — execute each city's queued recipe
+  // Phase 3: Crafting — execute each city's queued recipe (multiplier times)
   public runCrafting(): void {
     for (const city of this.cities) {
       if (!city.craftingQueue) continue;
@@ -98,16 +98,19 @@ export class GameState {
       const recipe = RECIPES.find((r) => r.id === city.craftingQueue);
       if (!recipe) continue;
 
-      if (!canAffordRecipe(city.stockpile, recipe)) continue;
+      const runs = Math.max(1, city.craftingMultiplier);
+      for (let i = 0; i < runs; i++) {
+        if (!canAffordRecipe(city.stockpile, recipe)) break;
 
-      // Consume inputs
-      for (const [resource, needed] of recipe.inputs) {
-        city.stockpile.set(resource, (city.stockpile.get(resource) ?? 0) - needed);
-      }
+        // Consume inputs
+        for (const [resource, needed] of recipe.inputs) {
+          city.stockpile.set(resource, (city.stockpile.get(resource) ?? 0) - needed);
+        }
 
-      // Produce outputs
-      for (const [resource, amount] of recipe.outputs) {
-        city.stockpile.set(resource, (city.stockpile.get(resource) ?? 0) + amount);
+        // Produce outputs
+        for (const [resource, amount] of recipe.outputs) {
+          city.stockpile.set(resource, (city.stockpile.get(resource) ?? 0) + amount);
+        }
       }
     }
   }
@@ -243,6 +246,13 @@ export class GameState {
     const city = this.cities.find((c) => c.id === cityId);
     if (!city) return;
     city.craftingQueue = recipeId;
+  }
+
+  // Set crafting multiplier for a city
+  public setCraftingMultiplier(cityId: string, multiplier: number): void {
+    const city = this.cities.find((c) => c.id === cityId);
+    if (!city) return;
+    city.craftingMultiplier = Math.max(1, Math.floor(multiplier));
   }
 
   // Preview a link

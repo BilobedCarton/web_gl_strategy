@@ -27,6 +27,7 @@ export interface City {
   receivedResources: Set<ResourceType>; // unique types received via trade
   linkIds: string[];
   craftingQueue: string | null; // recipe id, or null if idle
+  craftingMultiplier: number; // how many times to run the recipe per turn
   foodStatus: "fed" | "underfed" | "starving";
 }
 
@@ -71,6 +72,7 @@ export function createCity(
     receivedResources: new Set(),
     linkIds: [],
     craftingQueue: null,
+    craftingMultiplier: 1,
     foodStatus: "fed",
   };
 }

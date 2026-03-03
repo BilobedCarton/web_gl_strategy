@@ -69,3 +69,12 @@ export function canAffordRecipe(stockpile: Map<ResourceType, number>, recipe: Re
   }
   return true;
 }
+
+// Maximum number of times a recipe can run given current stockpile
+export function maxAffordableRuns(stockpile: Map<ResourceType, number>, recipe: Recipe): number {
+  let max = Infinity;
+  for (const [resource, needed] of recipe.inputs) {
+    max = Math.min(max, Math.floor((stockpile.get(resource) ?? 0) / needed));
+  }
+  return max === Infinity ? 0 : max;
+}
