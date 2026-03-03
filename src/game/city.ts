@@ -26,6 +26,8 @@ export interface City {
   production: Map<ResourceType, number>; // per-turn output
   receivedResources: Set<ResourceType>; // unique types received via trade
   linkIds: string[];
+  craftingQueue: string | null; // recipe id, or null if idle
+  foodStatus: "fed" | "underfed" | "starving";
 }
 
 // Distinct city colors
@@ -68,5 +70,7 @@ export function createCity(
     production: new Map(),
     receivedResources: new Set(),
     linkIds: [],
+    craftingQueue: null,
+    foodStatus: "fed",
   };
 }

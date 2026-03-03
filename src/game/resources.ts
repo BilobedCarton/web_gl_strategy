@@ -7,6 +7,9 @@ export enum ResourceType {
   IronOre = "iron_ore",
   Herbs = "herbs",
   Furs = "furs",
+  Bread = "bread",
+  Tools = "tools",
+  Potions = "potions",
 }
 
 // Map resource types to their source terrain/feature
@@ -15,7 +18,7 @@ export interface ResourceSource {
   feature?: TerrainFeature;
 }
 
-export const ResourceSources: Record<ResourceType, ResourceSource> = {
+export const ResourceSources: Partial<Record<ResourceType, ResourceSource>> = {
   [ResourceType.Grain]: { terrain: TerrainType.Plains },
   [ResourceType.Fish]: { terrain: TerrainType.Coast },
   [ResourceType.Timber]: { feature: TerrainFeature.Forest },
@@ -32,6 +35,9 @@ export const ResourceNames: Record<ResourceType, string> = {
   [ResourceType.IronOre]: "Iron Ore",
   [ResourceType.Herbs]: "Herbs",
   [ResourceType.Furs]: "Furs",
+  [ResourceType.Bread]: "Bread",
+  [ResourceType.Tools]: "Tools",
+  [ResourceType.Potions]: "Potions",
 };
 
 // Check if a terrain tile produces a given resource
@@ -41,6 +47,7 @@ export function tileProducesResource(
   resource: ResourceType,
 ): boolean {
   const source = ResourceSources[resource];
+  if (!source) return false;
   if (source.terrain && terrain === source.terrain) return true;
   if (source.feature && feature === source.feature) return true;
   return false;
