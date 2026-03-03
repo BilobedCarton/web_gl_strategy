@@ -1,5 +1,5 @@
 import type { TerrainData } from "./procedural-generator";
-import type { City, TradeLink, TradeAllocation } from "./city";
+import type { City, TradeLink } from "./city";
 import { ResourceType } from "./resources";
 import { findPath, computeLinkCapacity } from "./pathfinding";
 import { RECIPES, RESOURCE_VALUE, FOOD_CONSUMPTION, TOOLS_BOOST, canAffordRecipe } from "./recipes";
